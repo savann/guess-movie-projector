@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Guess the Movie — Prototype</title>
+  <style>
+    :root{
+      --bg:#0b0f17;
+      --panel:#121a27cc;
+      --tile:#0f172ae6;
+      --tileHover:#1f2a44f0;
+      --text:#e8eefc;
+      --muted:#a9b5d3;
+      --accent:#7aa2ff;
+      --danger:#ff6b6b;
+    }
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; margin:0; background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial; }
+    .app{ height:100%; display:grid; grid-template-rows:auto 1fr; }
+    .topbar{
+      display:flex; gap:10px; align-items:center; justify-content:space-between;
+      padding:10px 12px; background:var(--panel); backdrop-filter: blur(8px);
+      border-bottom:1px solid #27324a;
+    }
+    .left, .right{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .btn{
+      appearance:none; border:1px solid #2a3754; background:#121a27;
+      color:var(--text); padding:10px 12px; border-radius:12px; cursor:pointer;
+      font-weight:700; letter-spacing:.2px;
+      transition:transform .05s ease, background .15s ease, border-color .15s ease;
+      user-select:none;
+    }
+    .btn:hover{ background:#18233a; border-color:#3a4c74; }
+    .btn:active{ transform:scale(0.98); }
+    .btn.primary{ border-color:#3d5bd6; background:#152248; }
+    .btn.danger{ border-color:#6b2a2a; background:#2a1414; color:#ffd5d5; }
+    .btn:disabled{ opacity:.45; cursor:not-allowed; }
+
+    .meta{ display:flex; flex-direction:column; line-height:1.1; }
+    .meta .title{ font-weight:800; }
+    .meta .sub{ color:var(--muted); font-size:12px; }
+
+    .stage{
+      position:relative;
+      display:grid;
+      place-items:center;
+      overflow:hidden;
+    }
+    .frame{
+      position:relative;
+      width:min(96vw, 96vh*1.65);
+      height:min(86vh, 96vw/1.65);
+      border-radius:18px;
+      overflow:hidden;
+      box-shadow:0 20px 60px rgba(0,0,0,.45);
+      border:1px solid #253150;
+      background:#0a0f1b;
+    }
+    .image{
+      position:absolute; inset:0;
+      background-position:center;
+      background-size:cover;
+      filter:saturate(1.05) contrast(1.05);
+    }
+
+    /* Grid overlay */
+    .grid{
+      position:absolute; inset:0;
+      display:grid;
+      gap:6px;
+      padding:10px;
+      pointer-events:auto;
+    }
+    .tile{
+      position:relative;
+      display:grid; place-items:center;
+      background:var(--tile);
+      border:1px solid #2a3754;
+      border-radius:14px;
+      font-size:clamp(18px, 2.2vw, 34px);
+      font-weight:900;
+      color:#ffffff;
+      text-shadow:0 2px 10px rgba(0,0,0,.6);
+      cursor:pointer;
+      user-select:none;
+      transition: background .15s ease, transform .08s ease, opacity .25s ease;
+    }
+    .tile:hover{ background:var(--tileHover); }
+    .tile:active{ transform:scale(0.98); }
+
+    .tile.opened{
+      opacity:0;
+      pointer-events:none;
+    }
+
+    /* Answer overlay */
+    .answerOverlay{
+      position:absolute; inset:0;
+      display:none;
+      align-items:flex-end;
+      background:linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,.75) 100%);
+      padding:18px;
+    }
+    .answerOverlay.show{ display:flex; }
+    .answerBox{
+      width:100%;
+      background:rgba(15,23,42,.72);
+      border:1px solid #2a3754;
+      border-radius:16px;
+      padding:14px 16px;
+      backdrop-filter: blur(8px);
+      display:flex; gap:12px; align-items:center; justify-content:space-between;
+    }
+    .answerText{
+      font-size:clamp(18px, 2.5vw, 38px);
+      font-weight:900;
+      letter-spacing:.3px;
+    }
+    .hint{
+      color:var(--muted);
+      font-size:12px;
+    }
+
+    /* Small helper */
+    .kbd{ font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:12px; padding:2px 6px; border:1px solid #2a3754; border-radius:8px; color:var(--muted); }
+
+    /* Mobile / projector safe */
+    @media (max-width: 720px){
+      .btn{ padding:9px 10px; border-radius:12px; }
+      .grid{ gap:5px; padding:8px; }
+      .tile{ border-radius:12px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="topbar">
+      <div class="left">
+        <div class="meta">
+          <div class="title">Вгадай фільм / мультфільм</div>
+          <div class="sub">
+            Клік по цифрі відкриває фрагмент ·
+            <span id="openedInfo">Відкрито: 0/24</span>
+            · <span id="packInfo">Пак: demo</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="right">
+        <button class="btn" id="btnUndo" title="Undo (U)">Undo <span class="kbd">U</span></button>
+        <button class="btn" id="btnReset" title="Reset (R)">Reset <span class="kbd">R</span></button>
+        <button class="btn" id="btnReveal" title="Reveal all">Reveal</button>
+        <button class="btn primary" id="btnAnswer" title="Показати/сховати відповідь (A)">Answer <span class="kbd">A</span></button>
+        <button class="btn danger" id="btnNext" title="Next (N)">Next <span class="kbd">N</span></button>
+      </div>
+    </div>
+
+    <div class="stage">
+      <div class="frame" id="frame">
+        <div class="image" id="image"></div>
+        <div class="grid" id="grid" aria-label="tiles"></div>
+
+        <div class="answerOverlay" id="answerOverlay">
+          <div class="answerBox">
+            <div>
+              <div class="answerText" id="answerText">Відповідь</div>
+              <div class="hint">Порада: щоб було чесно — показуйте відповідь тільки після спроби 🙂</div>
+            </div>
+            <button class="btn" id="btnHideAnswer">Сховати</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  // ====== CONFIG ======
+  const DEFAULT_ROWS = 4;
+  const DEFAULT_COLS = 6;
+  const PACK_URL = "assets/pack.json"; // <- сюди покладете бібліотеку
+  const TILE_GAP_PX = 6;
+
+  // Demo pack (fallback) — замініть на свої зображення
+  // Для демо використано "градієнт-заглушка", щоб воно працювало без файлів.
+  const demoPack = [
+    { id: "001", answer: "DEMO: Шрек", image: null, bg: "linear-gradient(135deg,#1f7a3a,#0b2a4a)" },
+    { id: "002", answer: "DEMO: Крижане серце", image: null, bg: "linear-gradient(135deg,#4aa3ff,#1a1f4a)" },
+    { id: "003", answer: "DEMO: Король Лев", image: null, bg: "linear-gradient(135deg,#ffb703,#6a040f)" }
+  ];
+
+  // ====== STATE ======
+  let rows = DEFAULT_ROWS;
+  let cols = DEFAULT_COLS;
+  let tiles = [];         // DOM tiles
+  let openedStack = [];   // indexes opened (for undo)
+  let currentIndex = 0;
+  let packName = "demo";
+  let pack = demoPack;
+
+  // ====== DOM ======
+  const gridEl = document.getElementById("grid");
+  const imageEl = document.getElementById("image");
+  const openedInfoEl = document.getElementById("openedInfo");
+  const packInfoEl = document.getElementById("packInfo");
+  const btnUndo = document.getElementById("btnUndo");
+  const btnReset = document.getElementById("btnReset");
+  const btnReveal = document.getElementById("btnReveal");
+  const btnAnswer = document.getElementById("btnAnswer");
+  const btnNext = document.getElementById("btnNext");
+  const answerOverlay = document.getElementById("answerOverlay");
+  const answerText = document.getElementById("answerText");
+  const btnHideAnswer = document.getElementById("btnHideAnswer");
+
+  function updateMeta(){
+    const opened = openedStack.length;
+    openedInfoEl.textContent = `Відкрито: ${opened}/${rows*cols}`;
+    packInfoEl.textContent = `Пак: ${packName}`;
+    btnUndo.disabled = openedStack.length === 0;
+  }
+
+  function hideAnswer(){
+    answerOverlay.classList.remove("show");
+  }
+  function toggleAnswer(){
+    if(answerOverlay.classList.contains("show")) hideAnswer();
+    else answerOverlay.classList.add("show");
+  }
+
+  function setBackgroundForItem(item){
+    // Якщо є файл-картинка — ставимо background-image: url(...)
+    // Якщо немає — демо-градієнт
+    if(item.image){
+      imageEl.style.backgroundImage = `url("${item.image}")`;
+    } else if(item.bg){
+      imageEl.style.backgroundImage = item.bg;
+    } else {
+      imageEl.style.backgroundImage = "linear-gradient(135deg,#111827,#0b1020)";
+    }
+    answerText.textContent = item.answer || "—";
+  }
+
+  function buildGrid(){
+    gridEl.innerHTML = "";
+    tiles = [];
+    openedStack = [];
+    hideAnswer();
+
+    gridEl.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+    gridEl.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+    gridEl.style.gap = `${TILE_GAP_PX}px`;
+
+    const total = rows * cols;
+    for(let i=0;i<total;i++){
+      const t = document.createElement("div");
+      t.className = "tile";
+      t.textContent = (i+1).toString();
+      t.dataset.index = i.toString();
+
+      t.addEventListener("click", () => openTile(i));
+      tiles.push(t);
+      gridEl.appendChild(t);
+    }
+    updateMeta();
+  }
+
+  function openTile(i){
+    const t = tiles[i];
+    if(!t || t.classList.contains("opened")) return;
+    t.classList.add("opened");
+    openedStack.push(i);
+    updateMeta();
+  }
+
+  function undo(){
+    const i = openedStack.pop();
+    if(i === undefined) return;
+    tiles[i].classList.remove("opened");
+    updateMeta();
+  }
+
+  function resetAll(){
+    openedStack = [];
+    tiles.forEach(t => t.classList.remove("opened"));
+    hideAnswer();
+    updateMeta();
+  }
+
+  function revealAll(){
+    openedStack = [];
+    tiles.forEach((t, idx) => {
+      if(!t.classList.contains("opened")){
+        t.classList.add("opened");
+      }
+    });
+    // stack not needed after reveal; but keep meta accurate
+    openedStack = Array.from({length: rows*cols}, (_,i)=>i);
+    updateMeta();
+  }
+
+  function nextItem(){
+    currentIndex = (currentIndex + 1) % pack.length;
+    loadCurrent();
+  }
+
+  function loadCurrent(){
+    const item = pack[currentIndex];
+    // Важливо: якщо pack.json лежить в assets/pack.json, то item.image
+    // має бути або повний шлях, або відносний до index.html.
+    // Ми підставимо автоматично префікс "assets/" тільки якщо в image немає "/" на початку.
+    if(item && item.image && !item.image.includes("://") && !item.image.startsWith("/") && !item.image.startsWith("assets/")){
+      item.image = "assets/" + item.image;
+    }
+
+    setBackgroundForItem(item || {answer:"—", image:null});
+    buildGrid();
+  }
+
+  // ====== LOAD PACK ======
+  async function loadPack(){
+    try{
+      const res = await fetch(PACK_URL, { cache: "no-store" });
+      if(!res.ok) throw new Error("pack.json not found");
+      const data = await res.json();
+      if(!Array.isArray(data) || data.length === 0) throw new Error("pack.json empty");
+      pack = data.map(x => ({
+        id: String(x.id ?? ""),
+        answer: String(x.answer ?? ""),
+        image: x.image ? String(x.image) : null
+      }));
+      packName = "assets/pack.json";
+    } catch (e){
+      // fallback
+      pack = demoPack;
+      packName = "demo (fallback)";
+    }
+  }
+
+  // ====== EVENTS ======
+  btnUndo.addEventListener("click", undo);
+  btnReset.addEventListener("click", resetAll);
+  btnReveal.addEventListener("click", revealAll);
+  btnAnswer.addEventListener("click", toggleAnswer);
+  btnHideAnswer.addEventListener("click", hideAnswer);
+  btnNext.addEventListener("click", nextItem);
+
+  window.addEventListener("keydown", (ev) => {
+    const k = ev.key.toLowerCase();
+    if(k === "u") undo();
+    if(k === "r") resetAll();
+    if(k === "a") toggleAnswer();
+    if(k === "n") nextItem();
+  });
+
+  // ====== START ======
+  (async function init(){
+    await loadPack();
+    currentIndex = 0;
+    loadCurrent();
+    updateMeta();
+  })();
+})();
+</script>
+</body>
+</html>
