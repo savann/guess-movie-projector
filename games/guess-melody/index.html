@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>🎵 Вгадай мелодію — Prototype</title>
+  <style>
+    :root{
+      --bg:#0b0f17;
+      --panel:#121a27cc;
+      --text:#e8eefc;
+      --muted:#a9b5d3;
+      --border:#253150;
+
+      --tileBg: rgba(8, 12, 24, 0.95);
+      --tileHover: rgba(20, 28, 55, 0.98);
+
+      --primary:#152248;
+      --primaryBorder:#3d5bd6;
+      --danger:#2a1414;
+      --dangerBorder:#6b2a2a;
+    }
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; margin:0; background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial; }
+    .app{ height:100%; display:grid; grid-template-rows:auto 1fr; }
+
+    .topbar{
+      display:flex; gap:10px; align-items:center; justify-content:space-between;
+      padding:10px 12px; background:var(--panel); backdrop-filter: blur(8px);
+      border-bottom:1px solid #27324a;
+    }
+    .left, .right{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .meta{ display:flex; flex-direction:column; line-height:1.1; }
+    .meta .title{ font-weight:900; letter-spacing:.2px; }
+    .meta .sub{ color:var(--muted); font-size:12px; }
+
+    .btn{
+      appearance:none; border:1px solid #2a3754; background:#121a27;
+      color:var(--text); padding:10px 12px; border-radius:12px; cursor:pointer;
+      font-weight:800; letter-spacing:.2px;
+      transition:transform .05s ease, background .15s ease, border-color .15s ease;
+      user-select:none;
+      text-decoration:none;
+      display:inline-flex; align-items:center; gap:8px;
+    }
+    .btn:hover{ background:#18233a; border-color:#3a4c74; }
+    .btn:active{ transform:scale(0.98); }
+    .btn.primary{ border-color:var(--primaryBorder); background:var(--primary); }
+    .btn.danger{ border-color:var(--dangerBorder); background:var(--danger); color:#ffd5d5; }
+    .btn:disabled{ opacity:.45; cursor:not-allowed; }
+    .btn.ghost{ background:transparent; border-color:#2a3754; }
+    .btn.ghost:hover{ background:#18233a; }
+
+    .kbd{ font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:12px; padding:2px 6px; border:1px solid #2a3754; border-radius:8px; color:var(--muted); }
+
+    .stage{ display:grid; place-items:center; padding:14px; }
+    .card{
+      width:min(1100px, 94vw);
+      border:1px solid var(--border);
+      border-radius:18px;
+      background:rgba(15,23,42,.55);
+      backdrop-filter: blur(10px);
+      box-shadow:0 20px 60px rgba(0,0,0,.35);
+      overflow:hidden;
+    }
+    .cardInner{ padding:16px; display:grid; gap:14px; }
+
+    .words{
+      display:grid;
+      grid-template-columns:repeat(5, minmax(0,1fr));
+      gap:12px;
+    }
+    .wordTile{
+      height: clamp(90px, 18vh, 160px);
+      border-radius:16px;
+      border:1px solid #2a3754;
+      background:var(--tileBg);
+      display:grid;
+      place-items:center;
+      cursor:pointer;
+      user-select:none;
+      transition: background .15s ease, transform .08s ease, opacity .25s ease;
+      padding:10px;
+      text-align:center;
+    }
+    .wordTile:hover{ background:var(--tileHover); }
+    .wordTile:active{ transform:scale(0.98); }
+    .wordTile .num{
+      font-weight:950;
+      font-size: clamp(26px, 4vw, 44px);
+      color:#fff;
+      opacity:.95;
+      text-shadow:0 2px 10px rgba(0,0,0,.6);
+    }
+    .wordTile.opened{
+      cursor:default;
+    }
+    .wordTile.opened .num{ display:none; }
+    .wordTile .word{
+      display:none;
+      font-weight:950;
+      font-size: clamp(18px, 3.2vw, 42px);
+      letter-spacing:.2px;
+      line-height:1.05;
+      color:#fff;
+      text-shadow:0 2px 16px rgba(0,0,0,.55);
+      word-break: break-word;
+    }
+    .wordTile.opened .word{ display:block; }
+
+    .footerRow{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      justify-content:space-between;
+      flex-wrap:wrap;
+      border-top:1px solid #27324a;
+      padding-top:12px;
+      margin-top:4px;
+    }
+    .stat{
+      color:var(--muted);
+      font-size:13px;
+    }
+
+    .answerOverlay{
+      display:none;
+      margin-top:6px;
+      padding:12px 14px;
+      border-radius:16px;
+      border:1px solid #2a3754;
+      background:rgba(15,23,42,.70);
+    }
+    .answerOverlay.show{ display:block; }
+    .answerTitle{
+      font-weight:950;
+      font-size: clamp(18px, 2.2vw, 28px);
+    }
+    .hint{
+      color:var(--muted);
+      font-size:12px;
+      margin-top:6px;
+      line-height:1.35;
+    }
+
+    @media (max-width: 720px){
+      .words{ grid-template-columns:1fr; }
+      .wordTile{ height:110px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="topbar">
+      <div class="left">
+        <a class="btn ghost" href="../../" title="Назад до меню">← Меню</a>
+        <div class="meta">
+          <div class="title">🎵 Вгадай мелодію</div>
+          <div class="sub">
+            Відкрий слова (5 блоків) і вгадай пісню ·
+            <span id="openedInfo">Відкрито: 0/5</span>
+            · <span id="packInfo">Пак: demo</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="right">
+        <button class="btn" id="btnUndo" title="Undo (U)">Undo <span class="kbd">U</span></button>
+        <button class="btn" id="btnReset" title="Reset (R)">Reset <span class="kbd">R</span></button>
+        <button class="btn" id="btnReveal" title="Reveal all">Reveal</button>
+        <button class="btn primary" id="btnAnswer" title="Показати/сховати відповідь (A)">Answer <span class="kbd">A</span></button>
+        <button class="btn danger" id="btnNext" title="Next (N)">Next <span class="kbd">N</span></button>
+      </div>
+    </div>
+
+    <div class="stage">
+      <div class="card">
+        <div class="cardInner">
+          <div class="words" id="words"></div>
+
+          <div id="answerOverlay" class="answerOverlay">
+            <div class="answerTitle" id="answerText">Відповідь</div>
+            <div class="hint">
+              Порада: краще готувати слова так, щоб без перших 1–2 блоків було складно вгадати.
+              <br/>⚠️ Не використовуйте дослівні довгі фрагменти текстів пісень у публічних наборах — краще короткі підказки/ключові слова.
+            </div>
+          </div>
+
+          <div class="footerRow">
+            <div class="stat" id="roundInfo">Раунд: 1 / 1</div>
+            <div class="stat">Гарячі клавіші: <span class="kbd">U</span> Undo · <span class="kbd">R</span> Reset · <span class="kbd">A</span> Answer · <span class="kbd">N</span> Next</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  // ====== CONFIG ======
+  // ВАЖЛИВО: pack.json краще містить НЕ повні тексти пісень, а 5 коротких підказок-словосполучень.
+  const PACK_URL = "assets/pack.json";
+  const WORDS_COUNT = 5;
+
+  // ====== DEMO PACK (fallback) ======
+  // Заміни на власний pack.json. Тут лише "підказки", не повні тексти.
+  const demoPack = [
+    { id:"001", answer:"DEMO: Назва пісні 1", words:["ніч", "дорога", "вогні", "місто", "пульс"] },
+    { id:"002", answer:"DEMO: Назва пісні 2", words:["літо", "море", "вітер", "танці", "свобода"] },
+    { id:"003", answer:"DEMO: Назва пісні 3", words:["друзі", "разом", "сміх", "пригода", "перемога"] }
+  ];
+
+  // ====== STATE ======
+  let pack = demoPack;
+  let packName = "demo (fallback)";
+  let currentIndex = 0;
+
+  let openedStack = []; // indexes 0..4 (для undo)
+  let wordTiles = [];   // DOM tiles
+
+  // ====== DOM ======
+  const wordsEl = document.getElementById("words");
+  const openedInfoEl = document.getElementById("openedInfo");
+  const packInfoEl = document.getElementById("packInfo");
+  const roundInfoEl = document.getElementById("roundInfo");
+
+  const btnUndo = document.getElementById("btnUndo");
+  const btnReset = document.getElementById("btnReset");
+  const btnReveal = document.getElementById("btnReveal");
+  const btnAnswer = document.getElementById("btnAnswer");
+  const btnNext = document.getElementById("btnNext");
+
+  const answerOverlay = document.getElementById("answerOverlay");
+  const answerText = document.getElementById("answerText");
+
+  // ====== UI ======
+  function updateMeta(){
+    openedInfoEl.textContent = `Відкрито: ${openedStack.length}/${WORDS_COUNT}`;
+    packInfoEl.textContent = `Пак: ${packName}`;
+    roundInfoEl.textContent = `Раунд: ${currentIndex + 1} / ${pack.length}`;
+    btnUndo.disabled = openedStack.length === 0;
+  }
+
+  function toggleAnswer(){
+    answerOverlay.classList.toggle("show");
+  }
+  function hideAnswer(){
+    answerOverlay.classList.remove("show");
+  }
+
+  // ====== Core ======
+  function buildBoard(item){
+    wordsEl.innerHTML = "";
+    openedStack = [];
+    wordTiles = [];
+    hideAnswer();
+
+    const words = normalizeWords(item.words);
+
+    for(let i=0;i<WORDS_COUNT;i++){
+      const tile = document.createElement("div");
+      tile.className = "wordTile";
+      tile.dataset.index = String(i);
+
+      const num = document.createElement("div");
+      num.className = "num";
+      num.textContent = String(i+1);
+
+      const word = document.createElement("div");
+      word.className = "word";
+      word.textContent = words[i];
+
+      tile.appendChild(num);
+      tile.appendChild(word);
+
+      tile.addEventListener("click", () => openTile(i));
+
+      wordTiles.push(tile);
+      wordsEl.appendChild(tile);
+    }
+
+    answerText.textContent = item.answer || "—";
+    updateMeta();
+  }
+
+  function openTile(i){
+    const tile = wordTiles[i];
+    if(!tile || tile.classList.contains("opened")) return;
+
+    tile.classList.add("opened");
+    openedStack.push(i);
+    updateMeta();
+  }
+
+  function undo(){
+    const i = openedStack.pop();
+    if(i === undefined) return;
+    wordTiles[i].classList.remove("opened");
+    updateMeta();
+  }
+
+  function reset(){
+    openedStack = [];
+    wordTiles.forEach(t => t.classList.remove("opened"));
+    hideAnswer();
+    updateMeta();
+  }
+
+  function reveal(){
+    openedStack = [];
+    wordTiles.forEach((t, idx) => {
+      if(!t.classList.contains("opened")){
+        t.classList.add("opened");
+      }
+      openedStack.push(idx);
+    });
+    updateMeta();
+  }
+
+  function next(){
+    currentIndex = (currentIndex + 1) % pack.length;
+    loadCurrent();
+  }
+
+  function loadCurrent(){
+    const item = pack[currentIndex] || { answer:"—", words:["","","","",""] };
+    buildBoard(item);
+  }
+
+  function normalizeWords(words){
+    // Гарантуємо 5 елементів
+    const arr = Array.isArray(words) ? words.map(w => String(w ?? "")) : [];
+    while(arr.length < WORDS_COUNT) arr.push("—");
+    return arr.slice(0, WORDS_COUNT);
+  }
+
+  // ====== Load pack.json ======
+  async function loadPack(){
+    try{
+      const res = await fetch(PACK_URL, { cache: "no-store" });
+      if(!res.ok) throw new Error("pack.json not found");
+      const data = await res.json();
+      if(!Array.isArray(data) || data.length === 0) throw new Error("pack.json empty");
+
+      // Очікувана структура:
+      // [{id:"001", answer:"...", words:["...", "...", "...", "...", "..."]}, ...]
+      pack = data.map(x => ({
+        id: String(x.id ?? ""),
+        answer: String(x.answer ?? ""),
+        words: Array.isArray(x.words) ? x.words : []
+      }));
+
+      packName = "assets/pack.json";
+    } catch(e){
+      pack = demoPack;
+      packName = "demo (fallback)";
+    }
+  }
+
+  // ====== Events ======
+  btnUndo.addEventListener("click", undo);
+  btnReset.addEventListener("click", reset);
+  btnReveal.addEventListener("click", reveal);
+  btnAnswer.addEventListener("click", toggleAnswer);
+  btnNext.addEventListener("click", next);
+
+  window.addEventListener("keydown", (ev) => {
+    const k = ev.key.toLowerCase();
+    if(k === "u") undo();
+    if(k === "r") reset();
+    if(k === "a") toggleAnswer();
+    if(k === "n") next();
+    if(k === "1") openTile(0);
+    if(k === "2") openTile(1);
+    if(k === "3") openTile(2);
+    if(k === "4") openTile(3);
+    if(k === "5") openTile(4);
+  });
+
+  // ====== Start ======
+  (async function init(){
+    await loadPack();
+    currentIndex = 0;
+    loadCurrent();
+  })();
+})();
+</script>
+</body>
+</html>
