@@ -61,8 +61,10 @@
       position:absolute; inset:0;
       background-position:center;
       background-size:cover;
-      filter:saturate(1.05) contrast(1.05);
+      filter: blur(14px) brightness(0.55) saturate(0.9);
+      transform: scale(1.08); /* щоб не було білих країв від blur */
     }
+
 
     /* Grid overlay */
     .grid{
