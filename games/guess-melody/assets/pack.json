@@ -4,7 +4,8 @@
     "answer": "Мужчина",
     "audio": "audio/001.mp3",
     "words": ["мужчина", "тільки", "мій", "обережно", "дівчата"],
-    "clip": { "start": 12, "duration": 8 }
+    "clip": { "start": 12,
+      "duration": 8 }
   },
   {
     "id": "002",
