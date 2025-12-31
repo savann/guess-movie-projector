@@ -169,13 +169,22 @@
 
           <div id="answerOverlay" class="answerOverlay">
             <div class="answerTitle" id="answerText">Відповідь</div>
-            <div class="hint">Краще використовувати 5 коротких підказок (слова/фрази), а не довгі тексти.</div>
+            <div class="hint">
+              Порада: краще використовувати 5 коротких підказок (слова/фрази), а не довгі тексти.
+            </div>
           </div>
 
           <div class="controls">
             <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
               <button class="btn primary" id="btnPlay">▶ Play</button>
+              <button class="btn" id="btnReplay">↺ Replay</button>
               <button class="btn" id="btnStop">⏹ Stop</button>
+
+              <div class="range" title="Ліміт уривка задається у pack.json (clip.start, clip.duration)">
+                <span>Уривок</span>
+                <span id="clipInfo">—</span>
+              </div>
+
               <div class="range">
                 <span>Гучність</span>
                 <input id="vol" type="range" min="0" max="1" step="0.05" value="0.8" />
@@ -183,10 +192,9 @@
             </div>
 
             <div class="stat" id="roundInfo">Раунд: 1 / 1</div>
-            <div class="stat">ГК: <span class="kbd">1</span>…<span class="kbd">5</span> відкрити · <span class="kbd">A</span> Answer · <span class="kbd">N</span> Next</div>
+            <div class="stat">ГК: <span class="kbd">1</span>…<span class="kbd">5</span> · <span class="kbd">Space</span> Play/Pause · <span class="kbd">S</span> Stop · <span class="kbd">A</span> Answer · <span class="kbd">N</span> Next</div>
           </div>
 
-          <!-- аудіо елемент -->
           <audio id="audio" preload="auto"></audio>
 
         </div>
@@ -196,26 +204,33 @@
 
 <script>
 (() => {
+  // ====== CONFIG ======
+  // pack.json структура:
+  // [{id, answer, audio:"audio/001.mp3", words:[...5], clip:{start:12, duration:8}}, ...]
   const PACK_URL = "assets/pack.json";
   const WORDS_COUNT = 5;
 
-  // fallback demo (без mp3)
+  // ====== FALLBACK DEMO PACK ======
   const demoPack = [
-    { id:"001", answer:"DEMO: Назва пісні 1", audio:null, words:["ніч","дорога","вогні","місто","пульс"] },
-    { id:"002", answer:"DEMO: Назва пісні 2", audio:null, words:["літо","море","вітер","танці","свобода"] }
+    { id:"001", answer:"DEMO: Назва пісні 1", audio:null, words:["ніч","дорога","вогні","місто","пульс"], clip:{start:0, duration:7} },
+    { id:"002", answer:"DEMO: Назва пісні 2", audio:null, words:["літо","море","вітер","танці","свобода"], clip:{start:10, duration:8} }
   ];
 
+  // ====== STATE ======
   let pack = demoPack;
   let packName = "demo (fallback)";
   let currentIndex = 0;
 
   let openedStack = [];
   let wordTiles = [];
+  let clipTimer = null;
 
+  // ====== DOM ======
   const wordsEl = document.getElementById("words");
   const openedInfoEl = document.getElementById("openedInfo");
   const packInfoEl = document.getElementById("packInfo");
   const roundInfoEl = document.getElementById("roundInfo");
+  const clipInfoEl = document.getElementById("clipInfo");
 
   const btnUndo = document.getElementById("btnUndo");
   const btnReset = document.getElementById("btnReset");
@@ -227,20 +242,32 @@
   const answerText = document.getElementById("answerText");
 
   const btnPlay = document.getElementById("btnPlay");
+  const btnReplay = document.getElementById("btnReplay");
   const btnStop = document.getElementById("btnStop");
+
   const vol = document.getElementById("vol");
   const audioEl = document.getElementById("audio");
 
+  // ====== UI ======
   function updateMeta(){
     openedInfoEl.textContent = `Відкрито: ${openedStack.length}/${WORDS_COUNT}`;
     packInfoEl.textContent = `Пак: ${packName}`;
     roundInfoEl.textContent = `Раунд: ${currentIndex + 1} / ${pack.length}`;
     btnUndo.disabled = openedStack.length === 0;
 
-    // кнопка play активна тільки якщо є audio
-    const item = pack[currentIndex];
-    btnPlay.disabled = !(item && item.audio);
-    btnStop.disabled = !(item && item.audio);
+    const item = pack[currentIndex] || {};
+    const hasAudio = !!item.audio;
+
+    btnPlay.disabled = !hasAudio;
+    btnReplay.disabled = !hasAudio;
+    btnStop.disabled = !hasAudio;
+
+    // clip info
+    const start = item.clip?.start ?? 0;
+    const dur = item.clip?.duration ?? null;
+    clipInfoEl.textContent = hasAudio
+      ? (dur ? `${start}s + ${dur}s` : `${start}s + (full)`)
+      : "—";
   }
 
   function toggleAnswer(){ answerOverlay.classList.toggle("show"); }
@@ -250,6 +277,75 @@
     const arr = Array.isArray(words) ? words.map(w => String(w ?? "")) : [];
     while(arr.length < WORDS_COUNT) arr.push("—");
     return arr.slice(0, WORDS_COUNT);
+  }
+
+  function clearClipTimer(){
+    if(clipTimer){
+      clearTimeout(clipTimer);
+      clipTimer = null;
+    }
+  }
+
+  function stopAudio(){
+    clearClipTimer();
+    try{
+      audioEl.pause();
+      audioEl.currentTime = 0;
+    }catch(e){}
+    btnPlay.textContent = "▶ Play";
+  }
+
+  // Запуск саме уривка: start + duration (якщо duration є)
+  async function playClip(fromStart = true){
+    const item = pack[currentIndex];
+    if(!item || !item.audio) return;
+
+    // сформувати src (audio в pack.json відносно assets/)
+    const src = item.audio.startsWith("assets/")
+      ? item.audio
+      : ("assets/" + item.audio);
+
+    if(audioEl.src !== new URL(src, window.location.href).href){
+      audioEl.src = src;
+    }
+
+    const start = Number(item.clip?.start ?? 0);
+    const duration = (item.clip && item.clip.duration != null) ? Number(item.clip.duration) : null;
+
+    clearClipTimer();
+
+    // якщо з "початку уривка" — ставимо currentTime на start
+    if(fromStart){
+      try{ audioEl.currentTime = start; } catch(e) {}
+    }
+
+    try{
+      await audioEl.play();
+      btnPlay.textContent = "⏸ Pause";
+    }catch(e){
+      // якщо браузер не дав запустити — нічого страшного
+      return;
+    }
+
+    // авто-стоп через duration
+    if(duration && Number.isFinite(duration) && duration > 0){
+      clipTimer = setTimeout(() => {
+        audioEl.pause();
+        try{ audioEl.currentTime = start; } catch(e) {}
+        btnPlay.textContent = "▶ Play";
+      }, duration * 1000);
+    }
+  }
+
+  function togglePlayPause(){
+    if(!audioEl.src) return;
+    if(audioEl.paused){
+      playClip(false); // продовжити без скидання на start
+    }else{
+      audioEl.pause();
+      clearClipTimer();
+      btnPlay.textContent = "▶ Play";
+    }
   }
 
   function buildBoard(item){
@@ -284,11 +380,14 @@
 
     answerText.textContent = item.answer || "—";
 
-    // аудіо
+    // preload аудіо (не autoplay)
     if(item.audio){
-      const src = item.audio.startsWith("assets/") ? item.audio : ("assets/" + item.audio);
+      const src = item.audio.startsWith("assets/")
+        ? item.audio
+        : ("assets/" + item.audio);
       audioEl.src = src;
-    } else {
+      audioEl.load();
+    }else{
       audioEl.removeAttribute("src");
     }
 
@@ -332,45 +431,11 @@
   }
 
   function loadCurrent(){
-    const item = pack[currentIndex] || { answer:"—", words:["","","","",""], audio:null };
+    const item = pack[currentIndex] || { answer:"—", words:["","","","",""], audio:null, clip:{start:0, duration:null} };
     buildBoard(item);
   }
 
-  // ===== Audio controls =====
-  function stopAudio(){
-    try{
-      audioEl.pause();
-      audioEl.currentTime = 0;
-    } catch(e){}
-    btnPlay.textContent = "▶ Play";
-  }
-
-  async function togglePlay(){
-    if(!audioEl.src){
-      return;
-    }
-    if(audioEl.paused){
-      try{
-        await audioEl.play(); // на Android може вимагати "user gesture" — кнопка дає його
-        btnPlay.textContent = "⏸ Pause";
-      } catch(e){
-        // якщо браузер заблокував автоплей/політики — просто залишимо як є
-      }
-    } else {
-      audioEl.pause();
-      btnPlay.textContent = "▶ Play";
-    }
-  }
-
-  vol.addEventListener("input", () => {
-    audioEl.volume = Number(vol.value);
-  });
-
-  audioEl.addEventListener("ended", () => {
-    btnPlay.textContent = "▶ Play";
-  });
-
-  // ===== Load pack.json =====
+  // ====== Load pack.json ======
   async function loadPack(){
     try{
       const res = await fetch(PACK_URL, { cache: "no-store" });
@@ -378,14 +443,14 @@
       const data = await res.json();
       if(!Array.isArray(data) || data.length === 0) throw new Error("pack.json empty");
 
-      // структура:
-      // [{id, answer, audio:"audio/001.mp3", words:[...5]}]
       pack = data.map(x => ({
         id: String(x.id ?? ""),
         answer: String(x.answer ?? ""),
         audio: x.audio ? String(x.audio) : null,
-        words: Array.isArray(x.words) ? x.words : []
+        words: Array.isArray(x.words) ? x.words : [],
+        clip: x.clip ? { start: Number(x.clip.start ?? 0), duration: (x.clip.duration == null ? null : Number(x.clip.duration)) } : { start: 0, duration: null }
       }));
+
       packName = "assets/pack.json";
     } catch(e){
       pack = demoPack;
@@ -393,15 +458,25 @@
     }
   }
 
-  // ===== Events =====
+  // ====== Events ======
   btnUndo.addEventListener("click", undo);
   btnReset.addEventListener("click", reset);
   btnReveal.addEventListener("click", reveal);
   btnAnswer.addEventListener("click", toggleAnswer);
   btnNext.addEventListener("click", next);
 
-  btnPlay.addEventListener("click", togglePlay);
+  btnPlay.addEventListener("click", togglePlayPause);
+  btnReplay.addEventListener("click", () => playClip(true));
   btnStop.addEventListener("click", stopAudio);
+
+  vol.addEventListener("input", () => {
+    audioEl.volume = Number(vol.value);
+  });
+
+  audioEl.addEventListener("ended", () => {
+    clearClipTimer();
+    btnPlay.textContent = "▶ Play";
+  });
 
   window.addEventListener("keydown", (ev) => {
     const k = ev.key.toLowerCase();
@@ -409,8 +484,14 @@
     if(k === "r") reset();
     if(k === "a") toggleAnswer();
     if(k === "n") next();
-    if(k === " ") { ev.preventDefault(); togglePlay(); }
     if(k === "s") stopAudio();
+
+    // Space: play/pause
+    if(k === " "){
+      ev.preventDefault();
+      togglePlayPause();
+    }
+
     if(k === "1") openTile(0);
     if(k === "2") openTile(1);
     if(k === "3") openTile(2);
@@ -418,7 +499,7 @@
     if(k === "5") openTile(4);
   });
 
-  // ===== Start =====
+  // ====== Start ======
   (async function init(){
     audioEl.volume = Number(vol.value);
     await loadPack();
