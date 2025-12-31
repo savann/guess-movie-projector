@@ -38,12 +38,17 @@
       font-weight:800; letter-spacing:.2px;
       transition:transform .05s ease, background .15s ease, border-color .15s ease;
       user-select:none;
+      text-decoration:none; /* щоб <a> виглядав як кнопка */
+      display:inline-flex; align-items:center; gap:8px;
     }
     .btn:hover{ background:#18233a; border-color:#3a4c74; }
     .btn:active{ transform:scale(0.98); }
     .btn.primary{ border-color:var(--primaryBorder); background:var(--primary); }
     .btn.danger{ border-color:var(--dangerBorder); background:var(--danger); color:#ffd5d5; }
     .btn:disabled{ opacity:.45; cursor:not-allowed; }
+    .btn.ghost{ background:transparent; border-color:#2a3754; }
+    .btn.ghost:hover{ background:#18233a; }
+
     .kbd{ font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:12px; padding:2px 6px; border:1px solid #2a3754; border-radius:8px; color:var(--muted); }
 
     .stage{ position:relative; display:grid; place-items:center; overflow:hidden; }
@@ -147,8 +152,11 @@
   <div class="app">
     <div class="topbar">
       <div class="left">
+        <!-- ✅ КНОПКА НАЗАД ДО МЕНЮ -->
+        <a class="btn ghost" href="../../" title="Назад до меню">← Меню</a>
+
         <div class="meta">
-          <div class="title">Вгадай фільм / мультфільм</div>
+          <div class="title">🎬 Вгадай фільм / мультфільм</div>
           <div class="sub">
             Клік по цифрі відкриває фрагмент ·
             <span id="openedInfo">Відкрито: 0/24</span>
