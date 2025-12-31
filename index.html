@@ -3,50 +3,50 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Guess the Movie — Prototype</title>
+  <title>Вгадай фільм — Projector Prototype</title>
   <style>
     :root{
       --bg:#0b0f17;
       --panel:#121a27cc;
-      --tile:#0b1220f2;
-      --tileHover:#1f2a44f0;
+      --tileBg: rgba(8, 12, 24, 0.95); /* майже непрозора плитка */
+      --tileHover: rgba(20, 28, 55, 0.98);
       --text:#e8eefc;
       --muted:#a9b5d3;
-      --accent:#7aa2ff;
-      --danger:#ff6b6b;
+      --primary:#152248;
+      --primaryBorder:#3d5bd6;
+      --danger:#2a1414;
+      --dangerBorder:#6b2a2a;
+      --border:#253150;
     }
     *{ box-sizing:border-box; }
     html,body{ height:100%; margin:0; background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial; }
     .app{ height:100%; display:grid; grid-template-rows:auto 1fr; }
+
     .topbar{
       display:flex; gap:10px; align-items:center; justify-content:space-between;
       padding:10px 12px; background:var(--panel); backdrop-filter: blur(8px);
       border-bottom:1px solid #27324a;
     }
     .left, .right{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .meta{ display:flex; flex-direction:column; line-height:1.1; }
+    .meta .title{ font-weight:900; letter-spacing:.2px; }
+    .meta .sub{ color:var(--muted); font-size:12px; }
+
     .btn{
       appearance:none; border:1px solid #2a3754; background:#121a27;
       color:var(--text); padding:10px 12px; border-radius:12px; cursor:pointer;
-      font-weight:700; letter-spacing:.2px;
+      font-weight:800; letter-spacing:.2px;
       transition:transform .05s ease, background .15s ease, border-color .15s ease;
       user-select:none;
     }
     .btn:hover{ background:#18233a; border-color:#3a4c74; }
     .btn:active{ transform:scale(0.98); }
-    .btn.primary{ border-color:#3d5bd6; background:#152248; }
-    .btn.danger{ border-color:#6b2a2a; background:#2a1414; color:#ffd5d5; }
+    .btn.primary{ border-color:var(--primaryBorder); background:var(--primary); }
+    .btn.danger{ border-color:var(--dangerBorder); background:var(--danger); color:#ffd5d5; }
     .btn:disabled{ opacity:.45; cursor:not-allowed; }
+    .kbd{ font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:12px; padding:2px 6px; border:1px solid #2a3754; border-radius:8px; color:var(--muted); }
 
-    .meta{ display:flex; flex-direction:column; line-height:1.1; }
-    .meta .title{ font-weight:800; }
-    .meta .sub{ color:var(--muted); font-size:12px; }
-
-    .stage{
-      position:relative;
-      display:grid;
-      place-items:center;
-      overflow:hidden;
-    }
+    .stage{ position:relative; display:grid; place-items:center; overflow:hidden; }
     .frame{
       position:relative;
       width:min(96vw, 96vh*1.65);
@@ -54,19 +54,30 @@
       border-radius:18px;
       overflow:hidden;
       box-shadow:0 20px 60px rgba(0,0,0,.45);
-      border:1px solid #253150;
+      border:1px solid var(--border);
       background:#0a0f1b;
     }
+
+    /* Два шари: чіткий + blur */
     .image{
       position:absolute; inset:0;
       background-position:center;
       background-size:cover;
-      filter: blur(14px) brightness(0.55) saturate(0.9);
-      transform: scale(1.08); /* щоб не було білих країв від blur */
+    }
+    .imageSharp{ filter:none; }
+    .imageBlur{
+      filter: blur(20px) brightness(0.50) saturate(0.90) contrast(1.02);
+      transform: scale(1.10); /* ховає краї після blur */
+      -webkit-mask: url(#tilesMask);
+      mask: url(#tilesMask);
+    }
+    .maskSvg{
+      position:absolute;
+      width:0; height:0;
+      pointer-events:none;
     }
 
-
-    /* Grid overlay */
+    /* Сітка плиток */
     .grid{
       position:absolute; inset:0;
       display:grid;
@@ -75,9 +86,8 @@
       pointer-events:auto;
     }
     .tile{
-      position:relative;
       display:grid; place-items:center;
-      background:var(--tile);
+      background:var(--tileBg);
       border:1px solid #2a3754;
       border-radius:14px;
       font-size:clamp(18px, 2.2vw, 34px);
@@ -90,44 +100,42 @@
     }
     .tile:hover{ background:var(--tileHover); }
     .tile:active{ transform:scale(0.98); }
-
     .tile.opened{
       opacity:0;
       pointer-events:none;
     }
 
-    /* Answer overlay */
+    /* Відповідь */
     .answerOverlay{
       position:absolute; inset:0;
       display:none;
       align-items:flex-end;
-      background:linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,.75) 100%);
+      background:linear-gradient(180deg, rgba(0,0,0,0) 35%, rgba(0,0,0,.78) 100%);
       padding:18px;
+      pointer-events:none; /* щоб не блокувало кліки, крім кнопки */
     }
     .answerOverlay.show{ display:flex; }
     .answerBox{
       width:100%;
-      background:rgba(15,23,42,.72);
+      background:rgba(15,23,42,.78);
       border:1px solid #2a3754;
       border-radius:16px;
       padding:14px 16px;
       backdrop-filter: blur(8px);
       display:flex; gap:12px; align-items:center; justify-content:space-between;
+      pointer-events:auto;
     }
     .answerText{
-      font-size:clamp(18px, 2.5vw, 38px);
-      font-weight:900;
+      font-size:clamp(18px, 2.5vw, 40px);
+      font-weight:950;
       letter-spacing:.3px;
     }
     .hint{
       color:var(--muted);
       font-size:12px;
+      margin-top:6px;
     }
 
-    /* Small helper */
-    .kbd{ font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:12px; padding:2px 6px; border:1px solid #2a3754; border-radius:8px; color:var(--muted); }
-
-    /* Mobile / projector safe */
     @media (max-width: 720px){
       .btn{ padding:9px 10px; border-radius:12px; }
       .grid{ gap:5px; padding:8px; }
@@ -160,18 +168,37 @@
 
     <div class="stage">
       <div class="frame" id="frame">
-        <div class="image" id="image"></div>
+
+        <!-- 1) ЧІТКИЙ ФОН -->
+        <div class="image imageSharp" id="imageSharp"></div>
+
+        <!-- 2) ЗАБЛЮРЕНИЙ ФОН (буде “вирізатися” маскою) -->
+        <div class="image imageBlur" id="imageBlur"></div>
+
+        <!-- SVG маска: біле = blur видно, чорне = “дірка” (видно sharp) -->
+        <svg class="maskSvg" viewBox="0 0 1 1" preserveAspectRatio="none" aria-hidden="true">
+          <defs>
+            <mask id="tilesMask" maskContentUnits="objectBoundingBox">
+              <rect x="0" y="0" width="1" height="1" fill="white"></rect>
+              <g id="maskHoles"></g>
+            </mask>
+          </defs>
+        </svg>
+
+        <!-- Сітка плиток -->
         <div class="grid" id="grid" aria-label="tiles"></div>
 
+        <!-- Відповідь -->
         <div class="answerOverlay" id="answerOverlay">
           <div class="answerBox">
             <div>
               <div class="answerText" id="answerText">Відповідь</div>
-              <div class="hint">Порада: щоб було чесно — показуйте відповідь тільки після спроби 🙂</div>
+              <div class="hint">Порада: показуйте відповідь тільки після спроби 🙂</div>
             </div>
             <button class="btn" id="btnHideAnswer">Сховати</button>
           </div>
         </div>
+
       </div>
     </div>
   </div>
@@ -181,11 +208,10 @@
   // ====== CONFIG ======
   const DEFAULT_ROWS = 4;
   const DEFAULT_COLS = 6;
-  const PACK_URL = "assets/pack.json"; // <- сюди покладете бібліотеку
+  const PACK_URL = "assets/pack.json"; // бібліотека кадрів
   const TILE_GAP_PX = 6;
 
-  // Demo pack (fallback) — замініть на свої зображення
-  // Для демо використано "градієнт-заглушка", щоб воно працювало без файлів.
+  // Demo pack (fallback) — працює навіть без assets/pack.json та картинок
   const demoPack = [
     { id: "001", answer: "DEMO: Шрек", image: null, bg: "linear-gradient(135deg,#1f7a3a,#0b2a4a)" },
     { id: "002", answer: "DEMO: Крижане серце", image: null, bg: "linear-gradient(135deg,#4aa3ff,#1a1f4a)" },
@@ -203,18 +229,24 @@
 
   // ====== DOM ======
   const gridEl = document.getElementById("grid");
-  const imageEl = document.getElementById("image");
   const openedInfoEl = document.getElementById("openedInfo");
   const packInfoEl = document.getElementById("packInfo");
+
+  const imageSharpEl = document.getElementById("imageSharp");
+  const imageBlurEl  = document.getElementById("imageBlur");
+  const maskHolesEl  = document.getElementById("maskHoles");
+
   const btnUndo = document.getElementById("btnUndo");
   const btnReset = document.getElementById("btnReset");
   const btnReveal = document.getElementById("btnReveal");
   const btnAnswer = document.getElementById("btnAnswer");
   const btnNext = document.getElementById("btnNext");
+
   const answerOverlay = document.getElementById("answerOverlay");
   const answerText = document.getElementById("answerText");
   const btnHideAnswer = document.getElementById("btnHideAnswer");
 
+  // ====== UI helpers ======
   function updateMeta(){
     const opened = openedStack.length;
     openedInfoEl.textContent = `Відкрито: ${opened}/${rows*cols}`;
@@ -230,23 +262,54 @@
     else answerOverlay.classList.add("show");
   }
 
+  // ====== Mask logic (дірки в blur-шарі) ======
+  function clearMaskHoles(){
+    maskHolesEl.innerHTML = "";
+  }
+
+  function tileRectObjectBBox(i){
+    const r = Math.floor(i / cols);
+    const c = i % cols;
+    const w = 1 / cols;
+    const h = 1 / rows;
+    return { x: c * w, y: r * h, w, h };
+  }
+
+  function addMaskHole(i){
+    const {x,y,w,h} = tileRectObjectBBox(i);
+    const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    rect.setAttribute("x", x);
+    rect.setAttribute("y", y);
+    rect.setAttribute("width", w);
+    rect.setAttribute("height", h);
+    rect.setAttribute("fill", "black"); // чорне = прозоро в blur (видно sharp)
+    rect.dataset.index = String(i);
+    maskHolesEl.appendChild(rect);
+  }
+
+  function removeMaskHole(i){
+    const el = maskHolesEl.querySelector(`rect[data-index="${i}"]`);
+    if(el) el.remove();
+  }
+
+  // ====== Background ======
   function setBackgroundForItem(item){
-    // Якщо є файл-картинка — ставимо background-image: url(...)
-    // Якщо немає — демо-градієнт
-    if(item.image){
-      imageEl.style.backgroundImage = `url("${item.image}")`;
-    } else if(item.bg){
-      imageEl.style.backgroundImage = item.bg;
-    } else {
-      imageEl.style.backgroundImage = "linear-gradient(135deg,#111827,#0b1020)";
-    }
+    const bg = item.image
+      ? `url("${item.image}")`
+      : (item.bg || "linear-gradient(135deg,#111827,#0b1020)");
+
+    imageSharpEl.style.backgroundImage = bg;
+    imageBlurEl.style.backgroundImage  = bg;
+
     answerText.textContent = item.answer || "—";
   }
 
+  // ====== Grid ======
   function buildGrid(){
     gridEl.innerHTML = "";
     tiles = [];
     openedStack = [];
+    clearMaskHoles();
     hideAnswer();
 
     gridEl.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
@@ -259,7 +322,6 @@
       t.className = "tile";
       t.textContent = (i+1).toString();
       t.dataset.index = i.toString();
-
       t.addEventListener("click", () => openTile(i));
       tiles.push(t);
       gridEl.appendChild(t);
@@ -270,34 +332,44 @@
   function openTile(i){
     const t = tiles[i];
     if(!t || t.classList.contains("opened")) return;
+
     t.classList.add("opened");
     openedStack.push(i);
+
+    // вирізаємо “дірку” в blur, щоб показати sharp
+    addMaskHole(i);
+
     updateMeta();
   }
 
   function undo(){
     const i = openedStack.pop();
     if(i === undefined) return;
+
     tiles[i].classList.remove("opened");
+    removeMaskHole(i);
+
     updateMeta();
   }
 
   function resetAll(){
     openedStack = [];
     tiles.forEach(t => t.classList.remove("opened"));
+    clearMaskHoles();
     hideAnswer();
     updateMeta();
   }
 
   function revealAll(){
     openedStack = [];
+    clearMaskHoles();
+
     tiles.forEach((t, idx) => {
-      if(!t.classList.contains("opened")){
-        t.classList.add("opened");
-      }
+      t.classList.add("opened");
+      openedStack.push(idx);
+      addMaskHole(idx);
     });
-    // stack not needed after reveal; but keep meta accurate
-    openedStack = Array.from({length: rows*cols}, (_,i)=>i);
+
     updateMeta();
   }
 
@@ -307,39 +379,40 @@
   }
 
   function loadCurrent(){
-    const item = pack[currentIndex];
-    // Важливо: якщо pack.json лежить в assets/pack.json, то item.image
-    // має бути або повний шлях, або відносний до index.html.
-    // Ми підставимо автоматично префікс "assets/" тільки якщо в image немає "/" на початку.
-    if(item && item.image && !item.image.includes("://") && !item.image.startsWith("/") && !item.image.startsWith("assets/")){
+    const item = pack[currentIndex] || { answer:"—", image:null };
+
+    // якщо image задано як "001.jpg" — допишемо "assets/"
+    if(item.image && !item.image.includes("://") && !item.image.startsWith("/") && !item.image.startsWith("assets/")){
       item.image = "assets/" + item.image;
     }
 
-    setBackgroundForItem(item || {answer:"—", image:null});
+    setBackgroundForItem(item);
     buildGrid();
+    updateMeta();
   }
 
-  // ====== LOAD PACK ======
+  // ====== Load pack.json ======
   async function loadPack(){
     try{
       const res = await fetch(PACK_URL, { cache: "no-store" });
       if(!res.ok) throw new Error("pack.json not found");
       const data = await res.json();
       if(!Array.isArray(data) || data.length === 0) throw new Error("pack.json empty");
+
       pack = data.map(x => ({
         id: String(x.id ?? ""),
         answer: String(x.answer ?? ""),
         image: x.image ? String(x.image) : null
       }));
+
       packName = "assets/pack.json";
     } catch (e){
-      // fallback
       pack = demoPack;
       packName = "demo (fallback)";
     }
   }
 
-  // ====== EVENTS ======
+  // ====== Events ======
   btnUndo.addEventListener("click", undo);
   btnReset.addEventListener("click", resetAll);
   btnReveal.addEventListener("click", revealAll);
@@ -355,12 +428,11 @@
     if(k === "n") nextItem();
   });
 
-  // ====== START ======
+  // ====== Start ======
   (async function init(){
     await loadPack();
     currentIndex = 0;
     loadCurrent();
-    updateMeta();
   })();
 })();
 </script>
