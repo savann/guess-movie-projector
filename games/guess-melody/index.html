@@ -11,10 +11,8 @@
       --text:#e8eefc;
       --muted:#a9b5d3;
       --border:#253150;
-
       --tileBg: rgba(8, 12, 24, 0.95);
       --tileHover: rgba(20, 28, 55, 0.98);
-
       --primary:#152248;
       --primaryBorder:#3d5bd6;
       --danger:#2a1414;
@@ -23,7 +21,6 @@
     *{ box-sizing:border-box; }
     html,body{ height:100%; margin:0; background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial; }
     .app{ height:100%; display:grid; grid-template-rows:auto 1fr; }
-
     .topbar{
       display:flex; gap:10px; align-items:center; justify-content:space-between;
       padding:10px 12px; background:var(--panel); backdrop-filter: blur(8px);
@@ -50,7 +47,6 @@
     .btn:disabled{ opacity:.45; cursor:not-allowed; }
     .btn.ghost{ background:transparent; border-color:#2a3754; }
     .btn.ghost:hover{ background:#18233a; }
-
     .kbd{ font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:12px; padding:2px 6px; border:1px solid #2a3754; border-radius:8px; color:var(--muted); }
 
     .stage{ display:grid; place-items:center; padding:14px; }
@@ -92,9 +88,6 @@
       opacity:.95;
       text-shadow:0 2px 10px rgba(0,0,0,.6);
     }
-    .wordTile.opened{
-      cursor:default;
-    }
     .wordTile.opened .num{ display:none; }
     .wordTile .word{
       display:none;
@@ -108,7 +101,7 @@
     }
     .wordTile.opened .word{ display:block; }
 
-    .footerRow{
+    .controls{
       display:flex;
       gap:10px;
       align-items:center;
@@ -118,10 +111,12 @@
       padding-top:12px;
       margin-top:4px;
     }
-    .stat{
-      color:var(--muted);
-      font-size:13px;
+    .stat{ color:var(--muted); font-size:13px; }
+    .range{
+      display:flex; gap:10px; align-items:center; color:var(--muted); font-size:13px;
+      padding:8px 10px; border:1px solid #2a3754; border-radius:12px; background:rgba(18,26,39,.55);
     }
+    input[type="range"]{ width:140px; }
 
     .answerOverlay{
       display:none;
@@ -132,20 +127,13 @@
       background:rgba(15,23,42,.70);
     }
     .answerOverlay.show{ display:block; }
-    .answerTitle{
-      font-weight:950;
-      font-size: clamp(18px, 2.2vw, 28px);
-    }
-    .hint{
-      color:var(--muted);
-      font-size:12px;
-      margin-top:6px;
-      line-height:1.35;
-    }
+    .answerTitle{ font-weight:950; font-size: clamp(18px, 2.2vw, 28px); }
+    .hint{ color:var(--muted); font-size:12px; margin-top:6px; line-height:1.35; }
 
     @media (max-width: 720px){
       .words{ grid-template-columns:1fr; }
       .wordTile{ height:110px; }
+      input[type="range"]{ width:120px; }
     }
   </style>
 </head>
@@ -176,20 +164,31 @@
     <div class="stage">
       <div class="card">
         <div class="cardInner">
+
           <div class="words" id="words"></div>
 
           <div id="answerOverlay" class="answerOverlay">
             <div class="answerTitle" id="answerText">Відповідь</div>
-            <div class="hint">
-              Порада: краще готувати слова так, щоб без перших 1–2 блоків було складно вгадати.
-              <br/>⚠️ Не використовуйте дослівні довгі фрагменти текстів пісень у публічних наборах — краще короткі підказки/ключові слова.
-            </div>
+            <div class="hint">Краще використовувати 5 коротких підказок (слова/фрази), а не довгі тексти.</div>
           </div>
 
-          <div class="footerRow">
+          <div class="controls">
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+              <button class="btn primary" id="btnPlay">▶ Play</button>
+              <button class="btn" id="btnStop">⏹ Stop</button>
+              <div class="range">
+                <span>Гучність</span>
+                <input id="vol" type="range" min="0" max="1" step="0.05" value="0.8" />
+              </div>
+            </div>
+
             <div class="stat" id="roundInfo">Раунд: 1 / 1</div>
-            <div class="stat">Гарячі клавіші: <span class="kbd">U</span> Undo · <span class="kbd">R</span> Reset · <span class="kbd">A</span> Answer · <span class="kbd">N</span> Next</div>
+            <div class="stat">ГК: <span class="kbd">1</span>…<span class="kbd">5</span> відкрити · <span class="kbd">A</span> Answer · <span class="kbd">N</span> Next</div>
           </div>
+
+          <!-- аудіо елемент -->
+          <audio id="audio" preload="auto"></audio>
+
         </div>
       </div>
     </div>
@@ -197,28 +196,22 @@
 
 <script>
 (() => {
-  // ====== CONFIG ======
-  // ВАЖЛИВО: pack.json краще містить НЕ повні тексти пісень, а 5 коротких підказок-словосполучень.
   const PACK_URL = "assets/pack.json";
   const WORDS_COUNT = 5;
 
-  // ====== DEMO PACK (fallback) ======
-  // Заміни на власний pack.json. Тут лише "підказки", не повні тексти.
+  // fallback demo (без mp3)
   const demoPack = [
-    { id:"001", answer:"DEMO: Назва пісні 1", words:["ніч", "дорога", "вогні", "місто", "пульс"] },
-    { id:"002", answer:"DEMO: Назва пісні 2", words:["літо", "море", "вітер", "танці", "свобода"] },
-    { id:"003", answer:"DEMO: Назва пісні 3", words:["друзі", "разом", "сміх", "пригода", "перемога"] }
+    { id:"001", answer:"DEMO: Назва пісні 1", audio:null, words:["ніч","дорога","вогні","місто","пульс"] },
+    { id:"002", answer:"DEMO: Назва пісні 2", audio:null, words:["літо","море","вітер","танці","свобода"] }
   ];
 
-  // ====== STATE ======
   let pack = demoPack;
   let packName = "demo (fallback)";
   let currentIndex = 0;
 
-  let openedStack = []; // indexes 0..4 (для undo)
-  let wordTiles = [];   // DOM tiles
+  let openedStack = [];
+  let wordTiles = [];
 
-  // ====== DOM ======
   const wordsEl = document.getElementById("words");
   const openedInfoEl = document.getElementById("openedInfo");
   const packInfoEl = document.getElementById("packInfo");
@@ -233,27 +226,38 @@
   const answerOverlay = document.getElementById("answerOverlay");
   const answerText = document.getElementById("answerText");
 
-  // ====== UI ======
+  const btnPlay = document.getElementById("btnPlay");
+  const btnStop = document.getElementById("btnStop");
+  const vol = document.getElementById("vol");
+  const audioEl = document.getElementById("audio");
+
   function updateMeta(){
     openedInfoEl.textContent = `Відкрито: ${openedStack.length}/${WORDS_COUNT}`;
     packInfoEl.textContent = `Пак: ${packName}`;
     roundInfoEl.textContent = `Раунд: ${currentIndex + 1} / ${pack.length}`;
     btnUndo.disabled = openedStack.length === 0;
+
+    // кнопка play активна тільки якщо є audio
+    const item = pack[currentIndex];
+    btnPlay.disabled = !(item && item.audio);
+    btnStop.disabled = !(item && item.audio);
   }
 
-  function toggleAnswer(){
-    answerOverlay.classList.toggle("show");
-  }
-  function hideAnswer(){
-    answerOverlay.classList.remove("show");
+  function toggleAnswer(){ answerOverlay.classList.toggle("show"); }
+  function hideAnswer(){ answerOverlay.classList.remove("show"); }
+
+  function normalizeWords(words){
+    const arr = Array.isArray(words) ? words.map(w => String(w ?? "")) : [];
+    while(arr.length < WORDS_COUNT) arr.push("—");
+    return arr.slice(0, WORDS_COUNT);
   }
 
-  // ====== Core ======
   function buildBoard(item){
     wordsEl.innerHTML = "";
     openedStack = [];
     wordTiles = [];
     hideAnswer();
+    stopAudio();
 
     const words = normalizeWords(item.words);
 
@@ -272,7 +276,6 @@
 
       tile.appendChild(num);
       tile.appendChild(word);
-
       tile.addEventListener("click", () => openTile(i));
 
       wordTiles.push(tile);
@@ -280,13 +283,21 @@
     }
 
     answerText.textContent = item.answer || "—";
+
+    // аудіо
+    if(item.audio){
+      const src = item.audio.startsWith("assets/") ? item.audio : ("assets/" + item.audio);
+      audioEl.src = src;
+    } else {
+      audioEl.removeAttribute("src");
+    }
+
     updateMeta();
   }
 
   function openTile(i){
     const tile = wordTiles[i];
     if(!tile || tile.classList.contains("opened")) return;
-
     tile.classList.add("opened");
     openedStack.push(i);
     updateMeta();
@@ -309,9 +320,7 @@
   function reveal(){
     openedStack = [];
     wordTiles.forEach((t, idx) => {
-      if(!t.classList.contains("opened")){
-        t.classList.add("opened");
-      }
+      t.classList.add("opened");
       openedStack.push(idx);
     });
     updateMeta();
@@ -323,18 +332,45 @@
   }
 
   function loadCurrent(){
-    const item = pack[currentIndex] || { answer:"—", words:["","","","",""] };
+    const item = pack[currentIndex] || { answer:"—", words:["","","","",""], audio:null };
     buildBoard(item);
   }
 
-  function normalizeWords(words){
-    // Гарантуємо 5 елементів
-    const arr = Array.isArray(words) ? words.map(w => String(w ?? "")) : [];
-    while(arr.length < WORDS_COUNT) arr.push("—");
-    return arr.slice(0, WORDS_COUNT);
+  // ===== Audio controls =====
+  function stopAudio(){
+    try{
+      audioEl.pause();
+      audioEl.currentTime = 0;
+    } catch(e){}
+    btnPlay.textContent = "▶ Play";
   }
 
-  // ====== Load pack.json ======
+  async function togglePlay(){
+    if(!audioEl.src){
+      return;
+    }
+    if(audioEl.paused){
+      try{
+        await audioEl.play(); // на Android може вимагати "user gesture" — кнопка дає його
+        btnPlay.textContent = "⏸ Pause";
+      } catch(e){
+        // якщо браузер заблокував автоплей/політики — просто залишимо як є
+      }
+    } else {
+      audioEl.pause();
+      btnPlay.textContent = "▶ Play";
+    }
+  }
+
+  vol.addEventListener("input", () => {
+    audioEl.volume = Number(vol.value);
+  });
+
+  audioEl.addEventListener("ended", () => {
+    btnPlay.textContent = "▶ Play";
+  });
+
+  // ===== Load pack.json =====
   async function loadPack(){
     try{
       const res = await fetch(PACK_URL, { cache: "no-store" });
@@ -342,14 +378,14 @@
       const data = await res.json();
       if(!Array.isArray(data) || data.length === 0) throw new Error("pack.json empty");
 
-      // Очікувана структура:
-      // [{id:"001", answer:"...", words:["...", "...", "...", "...", "..."]}, ...]
+      // структура:
+      // [{id, answer, audio:"audio/001.mp3", words:[...5]}]
       pack = data.map(x => ({
         id: String(x.id ?? ""),
         answer: String(x.answer ?? ""),
+        audio: x.audio ? String(x.audio) : null,
         words: Array.isArray(x.words) ? x.words : []
       }));
-
       packName = "assets/pack.json";
     } catch(e){
       pack = demoPack;
@@ -357,12 +393,15 @@
     }
   }
 
-  // ====== Events ======
+  // ===== Events =====
   btnUndo.addEventListener("click", undo);
   btnReset.addEventListener("click", reset);
   btnReveal.addEventListener("click", reveal);
   btnAnswer.addEventListener("click", toggleAnswer);
   btnNext.addEventListener("click", next);
+
+  btnPlay.addEventListener("click", togglePlay);
+  btnStop.addEventListener("click", stopAudio);
 
   window.addEventListener("keydown", (ev) => {
     const k = ev.key.toLowerCase();
@@ -370,6 +409,8 @@
     if(k === "r") reset();
     if(k === "a") toggleAnswer();
     if(k === "n") next();
+    if(k === " ") { ev.preventDefault(); togglePlay(); }
+    if(k === "s") stopAudio();
     if(k === "1") openTile(0);
     if(k === "2") openTile(1);
     if(k === "3") openTile(2);
@@ -377,8 +418,9 @@
     if(k === "5") openTile(4);
   });
 
-  // ====== Start ======
+  // ===== Start =====
   (async function init(){
+    audioEl.volume = Number(vol.value);
     await loadPack();
     currentIndex = 0;
     loadCurrent();
