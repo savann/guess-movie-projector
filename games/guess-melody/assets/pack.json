@@ -3,21 +3,28 @@
     "id": "001",
     "answer": "Мужчина",
     "audio": "audio/001.mp3",
-    "clip": { "start": 57, "duration": 15 },
+    "clip": { "start": 57, "duration": 30 },
     "words": ["мужчина", "тільки", "мій", "обережно", "дівчата"]
   },
   {
     "id": "002",
     "answer": "Шугар - Тьотя",
     "audio": "audio/002.mp3",
-    "clip": { "start": 48, "duration": 15 },
+    "clip": { "start": 48, "duration": 30 },
     "words": ["тьотя", "хоче", "крепкого", "солідного", "дядю"]
   },
   {
     "id": "003",
     "answer": "Шугар - Олєг",
     "audio": "audio/003.mp3",
-    "clip": { "start": 39, "duration": 15 },
+    "clip": { "start": 39, "duration": 30 },
     "words": ["вона", "не", "хоче", "крем", "брюле"]
+  },
+  {
+    "id": "004",
+    "answer": "DREVO - Смарагдове небог",
+    "audio": "audio/003.mp3",
+    "clip": { "start": 24, "duration": 30 },
+    "words": ["смарагдове", "небо", "чекає", "на", "завтра"]
   }
 ]
