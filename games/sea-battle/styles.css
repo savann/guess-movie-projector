@@ -1,22 +1,21 @@
 /* styles.css */
 :root{
   --bg:#0c1620;
-  --panel:#122231;
-  --panel2:#0f1e2b;
   --text:#eaf2ff;
   --muted:#a8b6c8;
-
-  --accent:#63b3ff;
 
   --cell:#183246;
   --cell2:#142b3d;
   --miss:#3a4a5a;
 
-  /* поранений: жовтий (не схожий на потоплений) */
+  /* поранений: жовтий (контрастний) */
   --hit:#ffd34d;
 
   /* потоплений: темно-червоний */
   --sunk:#6b0f1a;
+
+  --activeGlow: rgba(99,179,255,.35);
+  --activeGlow2: rgba(255,179,179,.35);
 }
 
 *{box-sizing:border-box}
@@ -29,34 +28,12 @@ body{
 }
 
 .app{min-height:100%; display:flex; flex-direction:column}
+
 .topbar{
-  padding:18px 22px;
+  padding:10px 22px;
   display:flex;
   justify-content:space-between;
   align-items:center;
-  gap:18px;
-}
-.title .h1{font-size:34px; font-weight:900; letter-spacing:1px}
-.title .h2{font-size:14px; color:var(--muted); margin-top:4px}
-
-.controls{display:flex; gap:10px; flex-wrap:wrap}
-.btn{
-  border:0;
-  padding:12px 16px;
-  border-radius:14px;
-  background: linear-gradient(180deg, #2b7fff, #1a5fd1);
-  color:white;
-  font-weight:800;
-  cursor:pointer;
-  box-shadow: 0 10px 22px rgba(0,0,0,.25);
-}
-.btn:active{transform:translateY(1px)}
-.btn-secondary{
-  background: linear-gradient(180deg, #2a3f55, #1a2b3c);
-  color:var(--text);
-}
-.btn-danger{
-  background: linear-gradient(180deg, #ff5b5b, #c22b2b);
 }
 
 .main{
@@ -72,22 +49,6 @@ body{
   border-radius:22px;
   padding:16px;
   box-shadow: 0 12px 28px rgba(0,0,0,.30);
-}
-
-.board-head{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:12px;
-  margin-bottom:12px;
-}
-.hint{color:var(--muted); font-size:16px}
-.turn{
-  padding:10px 14px;
-  border-radius:14px;
-  background: rgba(99,179,255,.12);
-  border: 1px solid rgba(99,179,255,.25);
-  font-weight:900;
 }
 
 .board{
@@ -150,7 +111,20 @@ body{
   border-radius:16px;
   background: rgba(255,255,255,.03);
   margin-bottom:10px;
+  border: 1px solid rgba(255,255,255,.06);
 }
+
+.score-row.active.team1{
+  box-shadow: 0 0 0 2px rgba(124,196,255,.35), 0 10px 22px rgba(0,0,0,.20);
+  border-color: rgba(124,196,255,.35);
+  background: rgba(124,196,255,.10);
+}
+.score-row.active.team2{
+  box-shadow: 0 0 0 2px rgba(255,179,179,.35), 0 10px 22px rgba(0,0,0,.20);
+  border-color: rgba(255,179,179,.35);
+  background: rgba(255,179,179,.10);
+}
+
 .team{font-weight:900}
 .team-1{color:#7cc4ff}
 .team-2{color:#ffb3b3}
@@ -174,6 +148,20 @@ body{
   color:var(--muted);
   font-weight:700;
 }
+
+/* ===== Buttons ===== */
+.btn{
+  border:0;
+  width:100%;
+  padding:12px 16px;
+  border-radius:14px;
+  background: linear-gradient(180deg, #2b7fff, #1a5fd1);
+  color:white;
+  font-weight:800;
+  cursor:pointer;
+  box-shadow: 0 10px 22px rgba(0,0,0,.25);
+}
+.btn:active{transform:translateY(1px)}
 
 /* ===== Compact Fleet (no text) ===== */
 .fleet{
@@ -220,5 +208,4 @@ body{
 
 @media (max-width: 1100px){
   .main{grid-template-columns:1fr;}
-  .sidebar{order:-1}
 }
