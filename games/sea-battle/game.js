@@ -14,8 +14,6 @@
     score2: 0,
     paused: false,
     reveal: false,
-    secondsLeft: 10 * 60,
-    timerHandle: null,
     finished: false,
   };
 
@@ -24,9 +22,9 @@
   const elTurn = document.getElementById("turnBadge");
   const elS1 = document.getElementById("score1");
   const elS2 = document.getElementById("score2");
-  const elTimer = document.getElementById("timer");
   const elResult = document.getElementById("resultText");
   const elCoord = document.getElementById("coordInput");
+  const elFleet = document.getElementById("fleet");
 
   // Buttons
   document.getElementById("btnNew").addEventListener("click", newGame);
@@ -36,8 +34,6 @@
     renderAll();
   });
   document.getElementById("btnPause").addEventListener("click", togglePause);
-  document.getElementById("btnMinus").addEventListener("click", () => adjustTime(-60));
-  document.getElementById("btnPlus").addEventListener("click", () => adjustTime(60));
   document.getElementById("btnFinish").addEventListener("click", finishGame);
   document.getElementById("btnFire").addEventListener("click", fireFromInput);
 
@@ -86,6 +82,10 @@
     setTurnBadge();
   }
 
+  function flashResult(text){
+    elResult.textContent = text;
+  }
+
   // ===== Board build/render =====
   function initGrid(){
     state.grid = Array.from({length: SIZE}, () =>
@@ -123,11 +123,55 @@
     }
   }
 
+  function renderFleet(){
+    if (!elFleet) return;
+
+    const labelFor = (size, idx) => {
+      // Красиво в списку: "4-палубний #1" тощо
+      const suffix = `${size}-палубний`;
+      // порахуємо порядковий номер серед цього розміру
+      const same = state.ships.filter(s => s.size === size);
+      const pos = same.findIndex(s => s.id === idx) + 1;
+      return `${suffix} #${pos}`;
+    };
+
+    // групуємо за розміром для стабільного порядку
+    const ordered = [...state.ships].sort((a,b) => b.size - a.size || a.id - b.id);
+
+    elFleet.innerHTML = "";
+    for (const ship of ordered){
+      const row = document.createElement("div");
+      row.className = "fleet-row";
+
+      const name = document.createElement("div");
+      name.className = "fleet-name";
+      name.textContent = labelFor(ship.size, ship.id);
+
+      const shipEl = document.createElement("div");
+      shipEl.className = "fleet-ship";
+
+      for (let i=0; i<ship.size; i++){
+        const deck = document.createElement("div");
+        deck.className = "deck";
+
+        if (ship.sunk){
+          deck.classList.add("sunk");
+        } else if (i < ship.hits){
+          deck.classList.add("hit");
+        }
+        shipEl.appendChild(deck);
+      }
+
+      row.appendChild(name);
+      row.appendChild(shipEl);
+      elFleet.appendChild(row);
+    }
+  }
+
   function renderAll(){
     setTurnBadge();
     elS1.textContent = state.score1;
     elS2.textContent = state.score2;
-    renderTimer();
 
     // render cells
     const cells = elBoard.querySelectorAll(".cell.playable");
@@ -156,10 +200,13 @@
       if (state.reveal && g.shipId != null && !g.fired){
         cell.classList.add("reveal-ship");
       }
+
       // lock when finished/paused
       cell.style.pointerEvents = (state.paused || state.finished) ? "none" : "auto";
       cell.style.opacity = (state.paused || state.finished) ? "0.75" : "1";
     });
+
+    renderFleet();
   }
 
   // ===== Ship placement (no-touch) =====
@@ -169,10 +216,7 @@
     let shipId = 0;
     for (const size of SHIPS){
       const placed = placeShipRandom(shipId, size);
-      if (!placed) {
-        // якщо раптом не змогло (дуже рідко) — перегенеримо все поле
-        return buildField();
-      }
+      if (!placed) return buildField(); // перегенерація поля
       shipId++;
     }
   }
@@ -193,10 +237,8 @@
       }
       if (cells.length !== size) continue;
 
-      // check empty + no-touch around
       if (!canPlaceCells(cells)) continue;
 
-      // place
       state.ships[id] = { id, cells, hits: 0, size, sunk: false };
       for (const {r,c} of cells){
         state.grid[r][c].shipId = id;
@@ -222,6 +264,36 @@
       }
     }
     return true;
+  }
+
+  // ===== Auto-mark around sunk ship =====
+  function markAroundShipAsMiss(ship){
+    // Позначаємо всі клітинки у прямокутнику навколо корабля як "вже стріляли" (промах),
+    // але НЕ чіпаємо палуби корабля і НЕ торкаємось інших кораблів (хоча їх там бути не повинно за правилом no-touch).
+    const rows = ship.cells.map(x => x.r);
+    const cols = ship.cells.map(x => x.c);
+    const rMin = Math.min(...rows) - 1;
+    const rMax = Math.max(...rows) + 1;
+    const cMin = Math.min(...cols) - 1;
+    const cMax = Math.max(...cols) + 1;
+
+    for (let r = rMin; r <= rMax; r++){
+      for (let c = cMin; c <= cMax; c++){
+        if (!inBounds(r,c)) continue;
+
+        // пропускаємо самі палуби корабля
+        const isShipCell = ship.cells.some(p => p.r === r && p.c === c);
+        if (isShipCell) continue;
+
+        const g = state.grid[r][c];
+
+        // не ставимо промах по клітинках з кораблями (страховка)
+        if (g.shipId != null) continue;
+
+        // ставимо промах, якщо ще не стріляли
+        if (!g.fired) g.fired = true;
+      }
+    }
   }
 
   // ===== Gameplay =====
@@ -265,12 +337,16 @@
       if (ship.hits >= ship.size && !ship.sunk){
         ship.sunk = true;
         addScore(state.team, SCORE_SUNK_BONUS);
+
+        // ✅ автопозначення контуру навколо потопленого корабля
+        markAroundShipAsMiss(ship);
+
         flashResult(`💥 Потоплено корабель! (+${SCORE_HIT} + ${SCORE_SUNK_BONUS}) Хід зберігається`);
       } else {
         flashResult(`🎯 Влучання: ${rcToCoord(r,c)} (+${SCORE_HIT}) Хід зберігається`);
       }
 
-      // if all ships sunk -> finish
+      // якщо всі кораблі потоплені — фініш
       if (state.ships.every(s => s && s.sunk)){
         finishGame(true);
       }
@@ -281,30 +357,19 @@
     elCoord.focus();
   }
 
-  function flashResult(text){
-    elResult.textContent = text;
-  }
+  // ===== Finish / New =====
+  function finishGame(allSunk=false){
+    if (state.finished) return;
+    state.finished = true;
+    renderAll();
 
-  // ===== Timer =====
-  function renderTimer(){
-    const s = Math.max(0, state.secondsLeft);
-    const mm = String(Math.floor(s/60)).padStart(2,"0");
-    const ss = String(s%60).padStart(2,"0");
-    elTimer.textContent = `${mm}:${ss}`;
-  }
+    const s1 = state.score1, s2 = state.score2;
+    let winner = "Нічия";
+    if (s1 > s2) winner = "Перемогла Команда 1";
+    if (s2 > s1) winner = "Перемогла Команда 2";
 
-  function tick(){
-    if (state.paused || state.finished) return;
-    state.secondsLeft -= 1;
-    renderTimer();
-    if (state.secondsLeft <= 0){
-      finishGame();
-    }
-  }
-
-  function startTimer(){
-    if (state.timerHandle) clearInterval(state.timerHandle);
-    state.timerHandle = setInterval(tick, 1000);
+    const prefix = allSunk ? "✅ Всі кораблі знищено!" : "🏁 Гру завершено!";
+    flashResult(`${prefix} • ${winner} • Рахунок: ${s1}:${s2}`);
   }
 
   function togglePause(){
@@ -315,42 +380,12 @@
     renderAll();
   }
 
-  function adjustTime(delta){
-    if (state.finished) return;
-    state.secondsLeft = Math.max(60, state.secondsLeft + delta);
-    renderTimer();
-  }
-
-  // ===== Finish / New =====
-  function finishGame(autoAllSunk=false){
-    if (state.finished) return;
-    state.finished = true;
-    renderAll();
-
-    let text;
-    if (autoAllSunk){
-      text = "✅ Всі кораблі знищено!";
-    } else if (state.secondsLeft <= 0){
-      text = "⏱ Час вийшов!";
-    } else {
-      text = "🏁 Гру завершено!";
-    }
-
-    const s1 = state.score1, s2 = state.score2;
-    let winner = "Нічия";
-    if (s1 > s2) winner = "Перемогла Команда 1";
-    if (s2 > s1) winner = "Перемогла Команда 2";
-
-    flashResult(`${text} • ${winner} • Рахунок: ${s1}:${s2}`);
-  }
-
   function newGame(){
     state.team = 1;
     state.score1 = 0;
     state.score2 = 0;
     state.paused = false;
     state.finished = false;
-    state.secondsLeft = 10 * 60;
     document.getElementById("btnPause").textContent = "Пауза";
     document.getElementById("toggleReveal").checked = false;
     state.reveal = false;
@@ -358,7 +393,6 @@
     buildField();
     buildBoardUI();
     renderAll();
-    startTimer();
     flashResult("Нова гра. Команда 1 починає!");
     elCoord.value = "";
     elCoord.focus();
