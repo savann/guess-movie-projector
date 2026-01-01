@@ -4,12 +4,12 @@
   const SIZE = 10;
 
   // Координати по осі X (10 унікальних символів)
-  // Варіант: Д З И Г А Р К У Л О
+  // Вибраний варіант: Д З И Г А Р К У Л О
   const AXIS = ["Д", "З", "И", "Г", "А", "Р", "К", "У", "Л", "О"];
 
   const SHIPS = [4, 3, 3, 2, 2, 2, 1, 1, 1, 1];
   const SCORE_HIT = 1;
-  const SCORE_SUNK_BONUS = 2;
+  const SCORE_SUNK_BONUS = 1; // ✅ було +2, тепер +1
 
   // ===== State =====
   const state = {
@@ -18,37 +18,25 @@
     team: 1,
     score1: 0,
     score2: 0,
-    paused: false,
     reveal: false,
     finished: false,
   };
 
   // ===== DOM =====
   const elBoard = document.getElementById("board");
-  const elTurn = document.getElementById("turnBadge");
   const elS1 = document.getElementById("score1");
   const elS2 = document.getElementById("score2");
   const elResult = document.getElementById("resultText");
   const elFleet = document.getElementById("fleet");
+  const elRow1 = document.getElementById("scoreRow1");
+  const elRow2 = document.getElementById("scoreRow2");
 
-  // Buttons
+  // Controls (залишилась тільки "Нова гра")
   document.getElementById("btnNew")?.addEventListener("click", newGame);
-  document.getElementById("btnReset")?.addEventListener("click", () => {
-    if (state.finished) return;
-    buildField();
-    renderAll();
-    flashResult("Поле перегенеровано.");
-  });
-  document.getElementById("btnPause")?.addEventListener("click", togglePause);
-  document.getElementById("btnFinish")?.addEventListener("click", () => finishGame(false));
 
   document.getElementById("toggleReveal")?.addEventListener("change", (e) => {
     state.reveal = !!e.target.checked;
     renderAll();
-  });
-
-  window.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") togglePause();
   });
 
   // ===== Helpers =====
@@ -58,10 +46,21 @@
     return `${AXIS[c]}${r + 1}`;
   }
 
-  function setTurnBadge() {
-    elTurn.textContent = `Хід: Команда ${state.team}`;
-    elTurn.style.background = state.team === 1 ? "rgba(124,196,255,.14)" : "rgba(255,179,179,.14)";
-    elTurn.style.borderColor = state.team === 1 ? "rgba(124,196,255,.25)" : "rgba(255,179,179,.25)";
+  function flashResult(text) {
+    if (elResult) elResult.textContent = text;
+  }
+
+  function setActiveTeamHighlight() {
+    if (!elRow1 || !elRow2) return;
+
+    elRow1.classList.remove("active", "team1", "team2");
+    elRow2.classList.remove("active", "team1", "team2");
+
+    if (state.team === 1) {
+      elRow1.classList.add("active", "team1");
+    } else {
+      elRow2.classList.add("active", "team2");
+    }
   }
 
   function addScore(team, points) {
@@ -73,11 +72,7 @@
 
   function switchTeam() {
     state.team = state.team === 1 ? 2 : 1;
-    setTurnBadge();
-  }
-
-  function flashResult(text) {
-    if (elResult) elResult.textContent = text;
+    setActiveTeamHighlight();
   }
 
   // ===== Board build/render =====
@@ -121,7 +116,6 @@
   function renderFleet() {
     if (!elFleet) return;
 
-    // компактно, без тексту: просто “пачки” кораблів
     const ordered = [...state.ships].sort((a, b) => b.size - a.size || a.id - b.id);
 
     elFleet.innerHTML = "";
@@ -144,9 +138,9 @@
   }
 
   function renderAll() {
-    setTurnBadge();
     elS1.textContent = String(state.score1);
     elS2.textContent = String(state.score2);
+    setActiveTeamHighlight();
 
     const cells = elBoard.querySelectorAll(".cell.playable");
     cells.forEach((cell) => {
@@ -177,8 +171,8 @@
         cell.classList.add("reveal-ship");
       }
 
-      cell.style.pointerEvents = (state.paused || state.finished) ? "none" : "auto";
-      cell.style.opacity = (state.paused || state.finished) ? "0.75" : "1";
+      cell.style.pointerEvents = state.finished ? "none" : "auto";
+      cell.style.opacity = state.finished ? "0.75" : "1";
     });
 
     renderFleet();
@@ -258,13 +252,10 @@
       for (let c = cMin; c <= cMax; c++) {
         if (!inBounds(r, c)) continue;
 
-        // не чіпаємо палуби цього корабля
         const isShipCell = ship.cells.some((p) => p.r === r && p.c === c);
         if (isShipCell) continue;
 
         const g = state.grid[r][c];
-
-        // не ставимо промах по кораблях (страховка)
         if (g.shipId != null) continue;
 
         if (!g.fired) g.fired = true;
@@ -280,7 +271,7 @@
   }
 
   function fireAt(r, c) {
-    if (state.paused || state.finished) return;
+    if (state.finished) return;
 
     const g = state.grid[r][c];
     if (g.fired) {
@@ -291,11 +282,9 @@
     g.fired = true;
 
     if (g.shipId == null) {
-      // miss
       flashResult(`💦 Промах: ${rcToCoord(r, c)} — хід іншої команди`);
       switchTeam();
     } else {
-      // hit
       const ship = state.ships[g.shipId];
       ship.hits += 1;
       addScore(state.team, SCORE_HIT);
@@ -303,10 +292,7 @@
       if (ship.hits >= ship.size && !ship.sunk) {
         ship.sunk = true;
         addScore(state.team, SCORE_SUNK_BONUS);
-
-        // ✅ автопозначення контуру навколо потопленого корабля
         markAroundShipAsMiss(ship);
-
         flashResult(`💥 Потоплено корабель! ${rcToCoord(r, c)} (+${SCORE_HIT} + ${SCORE_SUNK_BONUS}) Хід зберігається`);
       } else {
         flashResult(`🎯 Влучання: ${rcToCoord(r, c)} (+${SCORE_HIT}) Хід зберігається`);
@@ -335,24 +321,11 @@
     flashResult(`${prefix} • ${winner} • Рахунок: ${s1}:${s2}`);
   }
 
-  function togglePause() {
-    if (state.finished) return;
-    state.paused = !state.paused;
-    const btn = document.getElementById("btnPause");
-    if (btn) btn.textContent = state.paused ? "Продовжити" : "Пауза";
-    flashResult(state.paused ? "⏸ Пауза" : "▶ Продовжуємо");
-    renderAll();
-  }
-
   function newGame() {
     state.team = 1;
     state.score1 = 0;
     state.score2 = 0;
-    state.paused = false;
     state.finished = false;
-
-    const btn = document.getElementById("btnPause");
-    if (btn) btn.textContent = "Пауза";
 
     const reveal = document.getElementById("toggleReveal");
     if (reveal) reveal.checked = false;
