@@ -4,30 +4,20 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Морський бій — Командний (Турнір)</title>
+  <title>Морський бій</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <div class="app">
     <header class="topbar">
-      <div class="title">
-        <div class="h1">МОРСЬКИЙ БІЙ</div>
-        <div class="h2">Командний • Турнірний режим</div>
-      </div>
-
-      <div class="controls">
-        <button id="btnNew" class="btn">Нова гра</button>
-        <button id="btnReset" class="btn btn-secondary">Перегенерувати поле</button>
-        <button id="btnPause" class="btn btn-secondary">Пауза</button>
-      </div>
+      <!-- Заголовок прибрано за вимогою -->
+      <div></div>
+      <div></div>
     </header>
 
     <main class="main">
       <section class="board-wrap">
-        <div class="board-head">
-          <div class="hint">Називайте координати: <b>Д1 – О10</b></div>
-          <div class="turn" id="turnBadge">Хід: Команда 1</div>
-        </div>
+        <!-- Підказку координат і "Хід: Команда" прибрано -->
         <div class="board" id="board" aria-label="Поле 10 на 10"></div>
       </section>
 
@@ -35,19 +25,19 @@
         <div class="card">
           <div class="card-title">Рахунок</div>
 
-          <div class="score-row">
+          <div class="score-row" id="scoreRow1">
             <div class="team team-1">Команда 1</div>
             <div class="score" id="score1">0</div>
           </div>
 
-          <div class="score-row">
+          <div class="score-row" id="scoreRow2">
             <div class="team team-2">Команда 2</div>
             <div class="score" id="score2">0</div>
           </div>
 
           <div class="sub">
             <div>Влучання палуба: <b>+1</b></div>
-            <div>Потоплений корабель: <b>+2</b></div>
+            <div>Потоплений корабель: <b>+1</b></div>
           </div>
         </div>
 
@@ -72,8 +62,8 @@
         </div>
 
         <div class="card">
-          <div class="card-title">Фініш</div>
-          <button id="btnFinish" class="btn btn-danger">Завершити гру</button>
+          <!-- Кнопку "Завершити гру" прибрано. В цій картці тепер "Нова гра" -->
+          <button id="btnNew" class="btn">Нова гра</button>
           <div class="sub" id="resultText">—</div>
         </div>
       </aside>
@@ -81,7 +71,7 @@
 
     <footer class="footer">
       <div>© Ігри для проектора • Морський бій</div>
-      <div class="small">ESC — пауза</div>
+      <div class="small"></div>
     </footer>
   </div>
 
