@@ -7,120 +7,134 @@
 
 <style>
 body {
-    margin: 0;
-    font-family: Arial, sans-serif;
-    background: #0e1a25;
-    color: #fff;
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #0e1a25;
+  color: #fff;
 }
 
 /* ===== HEADER ===== */
 .header {
-    display: flex;
-    justify-content: space-between;
-    padding: 20px;
-    font-size: 28px;
+  display: flex;
+  justify-content: space-between;
+  padding: 20px;
+  font-size: 28px;
 }
 .team {
-    padding: 10px 20px;
-    border-radius: 14px;
-    opacity: 0.4;
+  padding: 10px 20px;
+  border-radius: 14px;
+  opacity: 0.4;
 }
 .team.active {
-    opacity: 1;
-    background: #1f8ef1;
+  opacity: 1;
+  background: #1f8ef1;
 }
-.score {
-    font-size: 22px;
+.score { font-size: 22px; }
+
+/* ===== BOARD ===== */
+.board-wrap {
+  padding: 20px;
+}
+.board {
+  display: grid;
+  grid-template-columns: 220px repeat(6, 1fr); /* перша колонка — теми */
+  gap: 14px;
+  align-items: center;
 }
 
-/* ===== GRID ===== */
-.grid {
-    display: grid;
-    grid-template-columns: repeat(6, 1fr);
-    gap: 15px;
-    padding: 20px;
+/* Заголовки складності */
+.diff-header {
+  font-size: 22px;
+  text-align: center;
+  opacity: 0.9;
 }
+
+/* Назви тем (рядки) */
+.theme-title {
+  font-size: 22px;
+  text-align: right;
+  padding-right: 12px;
+  opacity: 0.95;
+}
+
+/* Картки */
 .card {
-    background: #203239;
-    border-radius: 16px;
-    height: 110px;
-    font-size: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
+  background: #203239;
+  border-radius: 16px;
+  height: 72px;
+  font-size: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
 }
 .card.used {
-    visibility: hidden;
+  visibility: hidden; /* за ТЗ: картка зникає */
+}
+.card.disabled {
+  opacity: 0.15;
+  cursor: not-allowed;
 }
 
 /* ===== OVERLAY ===== */
 .overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.88);
-    display: none;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.88);
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
 }
-.overlay.show {
-    display: flex;
+.overlay.show { display: flex; }
+
+.theme-badge{
+  font-size: 30px;
+  opacity: 0.9;
+  margin-bottom: 12px;
 }
 
 .question {
-    font-size: 48px;
-    text-align: center;
-    max-width: 80%;
-    margin-bottom: 30px;
-    line-height: 1.3;
-    opacity: 0;
-    transform: scale(0.96);
+  font-size: 48px;
+  text-align: center;
+  max-width: 80%;
+  margin-bottom: 26px;
+  line-height: 1.3;
+  opacity: 0;
+  transform: scale(0.96);
 }
-.question.animate {
-    animation: questionFade 0.6s ease forwards;
-}
-@keyframes questionFade {
-    to { opacity: 1; transform: scale(1); }
-}
+.question.animate { animation: questionFade 0.6s ease forwards; }
+@keyframes questionFade { to { opacity: 1; transform: scale(1); } }
 
-.question b {
-    color: #f2bd7c;
-    animation: pop 0.4s ease;
-}
+.question b { color: #f2bd7c; animation: pop 0.4s ease; }
 .question mark {
-    background: #ea9076;
-    color: #203239;
-    padding: 4px 10px;
-    border-radius: 8px;
-    animation: pop 0.4s ease;
+  background: #ea9076;
+  color: #203239;
+  padding: 4px 10px;
+  border-radius: 8px;
+  animation: pop 0.4s ease;
 }
-@keyframes pop {
-    from { transform: scale(0.85); }
-    to { transform: scale(1); }
-}
+@keyframes pop { from { transform: scale(0.85); } to { transform: scale(1); } }
 
 .timer {
-    font-size: 120px;
-    margin: 20px 0;
+  font-size: 120px;
+  margin: 18px 0;
 }
 .timer.warning {
-    color: #ea9076;
-    animation: blink 0.6s infinite;
+  color: #ea9076;
+  animation: blink 0.6s infinite;
 }
-@keyframes blink {
-    0%,100% { opacity: 1; }
-    50% { opacity: 0.4; }
-}
+@keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
 
 /* ===== BUTTONS ===== */
 .buttons button {
-    font-size: 32px;
-    padding: 20px 40px;
-    margin: 20px;
-    border-radius: 16px;
-    border: none;
-    cursor: pointer;
+  font-size: 32px;
+  padding: 20px 40px;
+  margin: 20px;
+  border-radius: 16px;
+  border: none;
+  cursor: pointer;
 }
 .success { background: #2ecc71; }
 .fail { background: #e74c3c; }
@@ -130,34 +144,42 @@ body {
 <body>
 
 <div class="header">
-    <div class="team active" id="team1">Команда 1<br><span class="score" id="score1">0</span></div>
-    <div class="team" id="team2">Команда 2<br><span class="score" id="score2">0</span></div>
+  <div class="team active" id="team1">Команда 1<br><span class="score" id="score1">0</span></div>
+  <div class="team" id="team2">Команда 2<br><span class="score" id="score2">0</span></div>
 </div>
 
-<div class="grid" id="grid"></div>
+<div class="board-wrap">
+  <div class="board" id="board"></div>
+</div>
 
 <div class="overlay" id="overlay">
-    <div class="question" id="question"></div>
-    <div class="timer" id="timer">10</div>
-    <div class="buttons">
-        <button class="success" onclick="finish(true)">Зарахувати</button>
-        <button class="fail" onclick="finish(false)">Не зарахувати</button>
-    </div>
+  <div class="theme-badge" id="themeBadge"></div>
+  <div class="question" id="question"></div>
+  <div class="timer" id="timer">10</div>
+  <div class="buttons">
+    <button class="success" onclick="finish(true)">Зарахувати</button>
+    <button class="fail" onclick="finish(false)">Не зарахувати</button>
+  </div>
 </div>
 
 <script>
 let TIME_LIMIT = 10;
 let currentTeam = 0;
 let scores = [0,0];
-let cards = [];
+
 let currentCard = null;
 let timerInterval = null;
 let timeLeft = 0;
 
-const grid = document.getElementById('grid');
+// cardsMap: themeId -> { title, byDiff(Map) }
+let cardsMap = new Map();
+let themesOrder = [];
+
+const boardEl = document.getElementById('board');
 const overlay = document.getElementById('overlay');
 const timerEl = document.getElementById('timer');
 const questionEl = document.getElementById('question');
+const themeBadgeEl = document.getElementById('themeBadge');
 
 /* ===== LOAD DATA ===== */
 fetch('cards.json')
@@ -165,77 +187,122 @@ fetch('cards.json')
   .then(data => initGame(data));
 
 function initGame(data) {
-    TIME_LIMIT = data.settings.default_time;
+  TIME_LIMIT = data.settings?.default_time ?? 10;
 
-    data.themes.forEach(theme => {
-        theme.cards.forEach(card => {
-            cards.push({...card, used:false});
-        });
+  // побудова мапи
+  data.themes.forEach(theme => {
+    themesOrder.push(theme.id);
+    const byDiff = new Map();
+    theme.cards.forEach(c => {
+      byDiff.set(c.difficulty, {
+        ...c,
+        themeId: theme.id,
+        themeTitle: theme.title,
+        used: false,
+        el: null
+      });
     });
+    cardsMap.set(theme.id, { title: theme.title, byDiff });
+  });
 
-    cards.forEach((card, i) => {
-        const el = document.createElement('div');
-        el.className = 'card';
-        el.innerText = card.difficulty;
-        el.onclick = () => openCard(i, el);
-        grid.appendChild(el);
-        card.el = el;
-    });
+  renderBoard();
+}
+
+function renderBoard() {
+  boardEl.innerHTML = '';
+
+  // ===== HEADER ROW: (порожня клітинка + складності 1..6)
+  boardEl.appendChild(document.createElement('div')); // кут
+  for (let d = 1; d <= 6; d++) {
+    const h = document.createElement('div');
+    h.className = 'diff-header';
+    h.textContent = `Складність ${d}`;
+    boardEl.appendChild(h);
+  }
+
+  // ===== ROWS: теми
+  themesOrder.forEach(themeId => {
+    const theme = cardsMap.get(themeId);
+
+    const title = document.createElement('div');
+    title.className = 'theme-title';
+    title.textContent = theme.title;
+    boardEl.appendChild(title);
+
+    for (let d = 1; d <= 6; d++) {
+      const card = theme.byDiff.get(d) ?? null;
+
+      const cell = document.createElement('div');
+      cell.className = 'card';
+      cell.textContent = d;
+
+      if (!card) {
+        cell.classList.add('disabled');
+      } else {
+        card.el = cell;
+        cell.onclick = () => openCard(card);
+      }
+      boardEl.appendChild(cell);
+    }
+  });
 }
 
 /* ===== GAME LOGIC ===== */
-function openCard(index, el) {
-    if (cards[index].used) return;
+function openCard(card) {
+  if (!card || card.used) return;
 
-    currentCard = cards[index];
-    el.classList.add('used');
-    currentCard.used = true;
+  currentCard = card;
+  card.used = true;
+  if (card.el) card.el.classList.add('used');
 
-    overlay.classList.add('show');
+  overlay.classList.add('show');
 
-    questionEl.innerHTML = currentCard.question;
-    questionEl.classList.remove('animate');
-    void questionEl.offsetWidth;
-    questionEl.classList.add('animate');
+  themeBadgeEl.textContent = `Тема: ${card.themeTitle} • Складність: ${card.difficulty}`;
 
-    timeLeft = TIME_LIMIT;
-    timerEl.innerText = timeLeft;
-    timerEl.classList.remove('warning');
+  questionEl.innerHTML = card.question;
+  questionEl.classList.remove('animate');
+  void questionEl.offsetWidth;
+  questionEl.classList.add('animate');
 
-    if (currentCard.audio) {
-        const audio = new Audio(currentCard.audio);
-        audio.play();
-        audio.onended = () => setTimeout(startTimer, 500);
-    } else {
-        setTimeout(startTimer, 3000);
-    }
+  timeLeft = TIME_LIMIT;
+  timerEl.textContent = timeLeft;
+  timerEl.classList.remove('warning');
+
+  if (card.audio) {
+    const audio = new Audio(card.audio);
+    audio.play();
+    audio.onended = () => setTimeout(startTimer, 500);
+  } else {
+    setTimeout(startTimer, 3000);
+  }
 }
 
 function startTimer() {
-    timerInterval = setInterval(() => {
-        timeLeft--;
-        timerEl.innerText = timeLeft;
-        if (timeLeft <= 3) timerEl.classList.add('warning');
-        if (timeLeft <= 0) clearInterval(timerInterval);
-    }, 1000);
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    timeLeft--;
+    timerEl.textContent = timeLeft;
+    if (timeLeft <= 3) timerEl.classList.add('warning');
+    if (timeLeft <= 0) clearInterval(timerInterval);
+  }, 1000);
 }
 
 function finish(success) {
-    clearInterval(timerInterval);
-    overlay.classList.remove('show');
+  clearInterval(timerInterval);
+  overlay.classList.remove('show');
 
-    if (success) {
-        scores[currentTeam] += currentCard.difficulty;
-        document.getElementById(`score${currentTeam+1}`).innerText = scores[currentTeam];
-    }
-    switchTeam();
+  if (success && currentCard) {
+    scores[currentTeam] += currentCard.difficulty;
+    document.getElementById(`score${currentTeam+1}`).textContent = scores[currentTeam];
+  }
+  switchTeam();
 }
 
 function switchTeam() {
-    document.getElementById('team1').classList.remove('active');
-    document.getElementById('team2').classList.remove('active');
-    currentTeam = currentTeam === 0 ? 1 : 0;
-    document.getElementById(`team${currentTeam+1}`).classList.add('active');
+  document.getElementById('team1').classList.remove('active');
+  document.getElementById('team2').classList.remove('active');
+  currentTeam = currentTeam === 0 ? 1 : 0;
+  document.getElementById(`team${currentTeam+1}`).classList.add('active');
 }
 </script>
 
