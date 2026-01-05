@@ -1,0 +1,35 @@
+{
+  "settings": {
+    "default_time": 10,
+    "words_required": 5
+  },
+  "themes": [
+    {
+      "id": "fruits",
+      "title": "Фрукти",
+      "cards": [
+        {
+          "difficulty": 1,
+          "audio": "audio/fruits_1.mp3",
+          "question": "Назви <b>п’ять</b> <mark>фруктів</mark>"
+        },
+        {
+          "difficulty": 2,
+          "audio": null,
+          "question": "Назви <b>п’ять</b> <mark>солодких фруктів</mark>"
+        }
+      ]
+    },
+    {
+      "id": "transport",
+      "title": "Транспорт",
+      "cards": [
+        {
+          "difficulty": 1,
+          "audio": "audio/transport_1.mp3",
+          "question": "Назви <b>п’ять</b> видів <mark>транспорту</mark>"
+        }
+      ]
+    }
+  ]
+}
