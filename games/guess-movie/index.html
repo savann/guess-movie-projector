@@ -1,180 +1,153 @@
 <!doctype html>
 <html lang="uk">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Вгадай фільм — Adaptive</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Вгадай фільм — сумісно зі старими Chrome</title>
 
 <style>
-:root{
-  --bg:#0b0f17;
-  --panel:#121a27cc;
-  --tileBg: rgba(8,12,24,.96);
-  --tileHover: rgba(20,28,55,.98);
-  --text:#e8eefc;
-  --muted:#a9b5d3;
-  --primary:#152248;
-  --primaryBorder:#3d5bd6;
-  --danger:#2a1414;
-  --dangerBorder:#6b2a2a;
-  --border:#253150;
-}
-
+/* ===== BASE ===== */
 *{box-sizing:border-box}
 html,body{
   height:100%;
   margin:0;
-  background:var(--bg);
-  color:var(--text);
-  font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
+  background:#0b0f17;
+  color:#e8eefc;
+  font-family:Arial,Segoe UI,Roboto,sans-serif;
 }
 
+/* ===== LAYOUT ===== */
 .app{
   height:100%;
-  display:grid;
-  grid-template-rows:auto 1fr;
+  display:flex;
+  flex-direction:column;
 }
 
-/* ---------- TOP BAR ---------- */
 .topbar{
   display:flex;
-  gap:10px;
-  align-items:center;
   justify-content:space-between;
-  padding:10px 12px;
-  background:var(--panel);
+  align-items:center;
+  padding:10px;
+  background:#121a27;
   border-bottom:1px solid #27324a;
 }
 
 .left,.right{
   display:flex;
-  gap:10px;
   align-items:center;
+  gap:8px;
   flex-wrap:wrap;
 }
 
-.meta .title{font-weight:900}
-.meta .sub{font-size:12px;color:var(--muted)}
+.meta .title{font-weight:bold}
+.meta .sub{font-size:12px;color:#a9b5d3}
 
 .btn{
-  border:1px solid #2a3754;
   background:#121a27;
-  color:var(--text);
-  padding:10px 12px;
-  border-radius:12px;
+  border:1px solid #2a3754;
+  color:#e8eefc;
+  padding:8px 10px;
+  border-radius:10px;
   cursor:pointer;
-  font-weight:800;
+  font-weight:bold;
 }
 .btn:hover{background:#18233a}
-.btn.primary{background:var(--primary);border-color:var(--primaryBorder)}
-.btn.danger{background:var(--danger);border-color:var(--dangerBorder)}
+.btn.primary{background:#152248}
+.btn.danger{background:#2a1414}
 .btn.ghost{background:transparent}
-.btn:disabled{opacity:.4;cursor:not-allowed}
 
 .kbd{
-  font-family:monospace;
-  font-size:12px;
-  padding:2px 6px;
+  font-size:11px;
+  padding:2px 5px;
   border:1px solid #2a3754;
-  border-radius:8px;
-  color:var(--muted);
+  border-radius:6px;
 }
 
-/* ---------- STAGE ---------- */
+/* ===== STAGE ===== */
 .stage{
-  position:relative;
-  display:grid;
-  place-items:center;
+  flex:1;
+  display:flex;
+  justify-content:center;
+  align-items:center;
   overflow:hidden;
 }
 
-/* 🔥 АДАПТИВНИЙ КАДР */
+/* ❗ без aspect-ratio */
 .frame{
   position:relative;
-  width:100%;
-  height:100%;
-  max-width:96vw;
-  max-height:88vh;
-  margin:auto;
-  aspect-ratio:16/9;
-
-  border-radius:18px;
-  overflow:hidden;
-  border:1px solid var(--border);
+  width:90vw;
+  height:80vh;
+  max-width:1280px;
+  max-height:720px;
   background:#0a0f1b;
-  box-shadow:0 20px 60px rgba(0,0,0,.45);
+  border:1px solid #253150;
+  border-radius:16px;
+  overflow:hidden;
 }
 
-/* ---------- BACKGROUND ---------- */
+/* ===== BACKGROUND ===== */
 .image{
   position:absolute;
-  inset:0;
+  left:0;top:0;right:0;bottom:0;
   background-size:cover;
   background-position:center;
 }
 
 .imageBlur{
-  filter:blur(20px) brightness(.55);
+  filter:blur(18px) brightness(.55);
   transform:scale(1.1);
   -webkit-mask:url(#tilesMask);
   mask:url(#tilesMask);
 }
 
-.maskSvg{
-  position:absolute;
-  width:0;
-  height:0;
-}
+.maskSvg{width:0;height:0}
 
-/* ---------- GRID ---------- */
+/* ===== GRID ===== */
 .grid{
   position:absolute;
-  inset:0;
+  left:0;top:0;right:0;bottom:0;
   display:grid;
-  gap:clamp(4px,1vw,10px);
-  padding:clamp(6px,1.5vw,14px);
+  gap:8px;
+  padding:10px;
 }
 
 .tile{
-  display:grid;
-  place-items:center;
-  background:var(--tileBg);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:rgba(8,12,24,.95);
   border:1px solid #2a3754;
-  border-radius:14px;
-  font-weight:900;
-  font-size:clamp(16px,3vw,44px);
+  border-radius:12px;
+  font-size:32px;
+  font-weight:bold;
   cursor:pointer;
-  transition:.15s;
 }
-
-.tile:hover{background:var(--tileHover)}
+.tile:hover{background:rgba(20,28,55,.98)}
 .tile.opened{opacity:0;pointer-events:none}
 
-/* ---------- ANSWER ---------- */
+/* ===== ANSWER ===== */
 .answerOverlay{
   position:absolute;
-  inset:0;
+  left:0;right:0;bottom:0;
   display:none;
-  align-items:flex-end;
-  padding:18px;
-  background:linear-gradient(180deg,transparent 40%,rgba(0,0,0,.8));
+  padding:16px;
+  background:linear-gradient(to top,rgba(0,0,0,.85),transparent);
 }
 
-.answerOverlay.show{display:flex}
+.answerOverlay.show{display:block}
 
 .answerBox{
-  width:100%;
-  background:rgba(15,23,42,.8);
-  border-radius:16px;
-  padding:14px 16px;
+  background:rgba(15,23,42,.9);
+  padding:12px;
+  border-radius:14px;
   display:flex;
   justify-content:space-between;
   align-items:center;
 }
 
 .answerText{
-  font-size:clamp(18px,3vw,42px);
-  font-weight:900;
+  font-size:28px;
+  font-weight:bold;
 }
 </style>
 </head>
@@ -182,37 +155,36 @@ html,body{
 <body>
 <div class="app">
 
+<!-- ===== TOP BAR ===== -->
 <div class="topbar">
   <div class="left">
-    <a class="btn ghost" href="../../">← Меню</a>
+    <button class="btn ghost" onclick="location.reload()">← Меню</button>
     <div class="meta">
       <div class="title">🎬 Вгадай фільм</div>
       <div class="sub">
-        <span id="openedInfo">Відкрито: 0/24</span> ·
-        <span id="packInfo">demo</span>
+        <span id="openedInfo">Відкрито: 0/24</span>
       </div>
     </div>
   </div>
-
   <div class="right">
-    <button class="btn" id="btnUndo">Undo <span class="kbd">U</span></button>
-    <button class="btn" id="btnReset">Reset <span class="kbd">R</span></button>
-    <button class="btn" id="btnReveal">Reveal</button>
-    <button class="btn primary" id="btnAnswer">Answer <span class="kbd">A</span></button>
-    <button class="btn danger" id="btnNext">Next <span class="kbd">N</span></button>
+    <button class="btn" onclick="undo()">Undo <span class="kbd">U</span></button>
+    <button class="btn" onclick="resetAll()">Reset <span class="kbd">R</span></button>
+    <button class="btn primary" onclick="toggleAnswer()">Answer <span class="kbd">A</span></button>
   </div>
 </div>
 
+<!-- ===== STAGE ===== -->
 <div class="stage">
   <div class="frame" id="frame">
 
     <div class="image" id="imageSharp"></div>
     <div class="image imageBlur" id="imageBlur"></div>
 
+    <!-- SVG MASK -->
     <svg class="maskSvg">
       <defs>
         <mask id="tilesMask" maskContentUnits="objectBoundingBox">
-          <rect width="1" height="1" fill="white"/>
+          <rect width="1" height="1" fill="white"></rect>
           <g id="maskHoles"></g>
         </mask>
       </defs>
@@ -222,5 +194,122 @@ html,body{
 
     <div class="answerOverlay" id="answerOverlay">
       <div class="answerBox">
-        <div class="answerText" id="answerText">Відповідь</div>
-        <button class="btn" id="btnHideAnswer">Сховати</button>
+        <div class="answerText" id="answerText">ШРЕК</div>
+        <button class="btn" onclick="toggleAnswer()">Сховати</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</div>
+
+<script>
+/* ===== FRAME ADAPT (OLD CHROME SAFE) ===== */
+function resizeFrame(){
+  var f=document.getElementById("frame");
+  var w=window.innerWidth;
+  var h=window.innerHeight;
+  var fw,fh;
+
+  if(h>w){
+    fw=w*0.9;
+    fh=fw*1.33;
+  }else{
+    fh=h*0.8;
+    fw=fh*1.78;
+  }
+
+  if(fw>w*0.95){
+    fw=w*0.95;
+    fh=fw/1.78;
+  }
+
+  f.style.width=Math.round(fw)+"px";
+  f.style.height=Math.round(fh)+"px";
+}
+
+window.addEventListener("resize",resizeFrame);
+window.addEventListener("orientationchange",resizeFrame);
+
+/* ===== GAME ===== */
+var rows=4,cols=6;
+var grid=document.getElementById("grid");
+var maskHoles=document.getElementById("maskHoles");
+var openedInfo=document.getElementById("openedInfo");
+var answerOverlay=document.getElementById("answerOverlay");
+var imageSharp=document.getElementById("imageSharp");
+var imageBlur=document.getElementById("imageBlur");
+
+var opened=[];
+
+imageSharp.style.backgroundImage="linear-gradient(135deg,#1f7a3a,#0b2a4a)";
+imageBlur.style.backgroundImage=imageSharp.style.backgroundImage;
+
+function buildGrid(){
+  grid.style.gridTemplateColumns="repeat("+cols+",1fr)";
+  grid.style.gridTemplateRows="repeat("+rows+",1fr)";
+  grid.innerHTML="";
+  maskHoles.innerHTML="";
+  opened=[];
+  for(var i=0;i<rows*cols;i++){
+    (function(i){
+      var t=document.createElement("div");
+      t.className="tile";
+      t.innerHTML=i+1;
+      t.onclick=function(){openTile(i,t)};
+      grid.appendChild(t);
+    })(i);
+  }
+  updateMeta();
+}
+
+function openTile(i,t){
+  if(t.className.indexOf("opened")!==-1) return;
+  t.className+=" opened";
+  opened.push(i);
+
+  var r=Math.floor(i/cols);
+  var c=i%cols;
+
+  var rect=document.createElementNS("http://www.w3.org/2000/svg","rect");
+  rect.setAttribute("x",c/cols);
+  rect.setAttribute("y",r/rows);
+  rect.setAttribute("width",1/cols);
+  rect.setAttribute("height",1/rows);
+  rect.setAttribute("fill","black");
+  maskHoles.appendChild(rect);
+
+  updateMeta();
+}
+
+function undo(){
+  if(!opened.length) return;
+  var i=opened.pop();
+  grid.children[i].className="tile";
+  maskHoles.removeChild(maskHoles.lastChild);
+  updateMeta();
+}
+
+function resetAll(){
+  buildGrid();
+  answerOverlay.className="answerOverlay";
+}
+
+function toggleAnswer(){
+  answerOverlay.className=
+    answerOverlay.className.indexOf("show")===-1
+    ? "answerOverlay show"
+    : "answerOverlay";
+}
+
+function updateMeta(){
+  openedInfo.innerHTML="Відкрито: "+opened.length+"/"+(rows*cols);
+}
+
+/* ===== INIT ===== */
+resizeFrame();
+buildGrid();
+</script>
+</body>
+</html>
