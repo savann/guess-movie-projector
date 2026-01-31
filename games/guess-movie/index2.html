@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Вгадай фільм — фіксований кадр</title>
+
+<style>
+/* ===== BASE ===== */
+*{box-sizing:border-box}
+html,body{
+  height:100%;
+  margin:0;
+  background:#0b0f17;
+  color:#e8eefc;
+  font-family:Arial,Segoe UI,Roboto,sans-serif;
+}
+
+/* ===== LAYOUT ===== */
+.app{
+  height:100%;
+  display:flex;
+  flex-direction:column;
+}
+
+.topbar{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:10px;
+  background:#121a27;
+  border-bottom:1px solid #27324a;
+}
+
+.left,.right{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+.meta .title{font-weight:bold}
+.meta .sub{font-size:12px;color:#a9b5d3}
+
+.btn{
+  background:#121a27;
+  border:1px solid #2a3754;
+  color:#e8eefc;
+  padding:8px 10px;
+  border-radius:10px;
+  cursor:pointer;
+  font-weight:bold;
+}
+.btn:hover{background:#18233a}
+.btn.primary{background:#152248}
+.btn.danger{background:#2a1414}
+.btn.ghost{background:transparent}
+
+.kbd{
+  font-size:11px;
+  padding:2px 5px;
+  border:1px solid #2a3754;
+  border-radius:6px;
+}
+
+/* ===== STAGE ===== */
+.stage{
+  flex:1;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  overflow:hidden;
+}
+
+/* ❗ ФІКСОВАНИЙ КАДР */
+.frame{
+  position:relative;
+  width:1280px;
+  height:720px;        /* 16:9 */
+  background:#0a0f1b;
+  border:1px solid #253150;
+  border-radius:16px;
+  overflow:hidden;
+}
+
+/* ===== BACKGROUND ===== */
+.image{
+  position:absolute;
+  left:0;top:0;right:0;bottom:0;
+  background-size:cover;
+  background-position:center;
+}
+
+.imageBlur{
+  filter:blur(18px) brightness(.55);
+  transform:scale(1.1);
+  -webkit-mask:url(#tilesMask);
+  mask:url(#tilesMask);
+}
+
+.maskSvg{width:0;height:0}
+
+/* ===== GRID (АДАПТИВНА ВСЕРЕДИНІ КАДРУ) ===== */
+.grid{
+  position:absolute;
+  left:0;top:0;right:0;bottom:0;
+  display:grid;
+  padding:12px;
+  gap:10px;
+}
+
+.tile{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:rgba(8,12,24,.95);
+  border:1px solid #2a3754;
+  border-radius:12px;
+  font-size:36px;
+  font-weight:bold;
+  cursor:pointer;
+}
+.tile:hover{background:rgba(20,28,55,.98)}
+.tile.opened{opacity:0;pointer-events:none}
+
+/* ===== ANSWER ===== */
+.answerOverlay{
+  position:absolute;
+  left:0;right:0;bottom:0;
+  display:none;
+  padding:16px;
+  background:linear-gradient(to top,rgba(0,0,0,.85),transparent);
+}
+
+.answerOverlay.show{display:block}
+
+.answerBox{
+  background:rgba(15,23,42,.9);
+  padding:12px;
+  border-radius:14px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+.answerText{
+  font-size:28px;
+  font-weight:bold;
+}
+</style>
+</head>
+
+<body>
+<div class="app">
+
+<!-- ===== TOP BAR ===== -->
+<div class="topbar">
+  <div class="left">
+    <button class="btn ghost" onclick="location.reload()">← Меню</button>
+    <div class="meta">
+      <div class="title">🎬 Вгадай фільм</div>
+      <div class="sub">
+        <span id="openedInfo">Відкрито: 0/24</span>
+      </div>
+    </div>
+  </div>
+  <div class="right">
+    <button class="btn" onclick="undo()">Undo <span class="kbd">U</span></button>
+    <button class="btn" onclick="resetAll()">Reset <span class="kbd">R</span></button>
+    <button class="btn primary" onclick="toggleAnswer()">Answer <span class="kbd">A</span></button>
+  </div>
+</div>
+
+<!-- ===== STAGE ===== -->
+<div class="stage">
+  <div class="frame" id="frame">
+
+    <div class="image" id="imageSharp"></div>
+    <div class="image imageBlur" id="imageBlur"></div>
+
+    <!-- SVG MASK -->
+    <svg class="maskSvg">
+      <defs>
+        <mask id="tilesMask" maskContentUnits="objectBoundingBox">
+          <rect width="1" height="1" fill="white"></rect>
+          <g id="maskHoles"></g>
+        </mask>
+      </defs>
+    </svg>
+
+    <div class="grid" id="grid"></div>
+
+    <div class="answerOverlay" id="answerOverlay">
+      <div class="answerBox">
+        <div class="answerText" id="answerText">ШРЕК</div>
+        <button class="btn" onclick="toggleAnswer()">Сховати</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</div>
+
+<script>
+/* ===== GAME (OLD CHROME SAFE) ===== */
+var rows=4, cols=6;
+var grid=document.getElementById("grid");
+var maskHoles=document.getElementById("maskHoles");
+var openedInfo=document.getElementById("openedInfo");
+var answerOverlay=document.getElementById("answerOverlay");
+var imageSharp=document.getElementById("imageSharp");
+var imageBlur=document.getElementById("imageBlur");
+
+var opened=[];
+
+/* demo background */
+imageSharp.style.backgroundImage =
+  "linear-gradient(135deg,#1f7a3a,#0b2a4a)";
+imageBlur.style.backgroundImage =
+  imageSharp.style.backgroundImage;
+
+function buildGrid(){
+  grid.style.gridTemplateColumns="repeat("+cols+",1fr)";
+  grid.style.gridTemplateRows="repeat("+rows+",1fr)";
+  grid.innerHTML="";
+  maskHoles.innerHTML="";
+  opened=[];
+  for(var i=0;i<rows*cols;i++){
+    (function(i){
+      var t=document.createElement("div");
+      t.className="tile";
+      t.innerHTML=i+1;
+      t.onclick=function(){openTile(i,t)};
+      grid.appendChild(t);
+    })(i);
+  }
+  updateMeta();
+}
+
+function openTile(i,t){
+  if(t.className.indexOf("opened")!==-1) return;
+  t.className+=" opened";
+  opened.push(i);
+
+  var r=Math.floor(i/cols);
+  var c=i%cols;
+
+  var rect=document.createElementNS(
+    "http://www.w3.org/2000/svg","rect"
+  );
+  rect.setAttribute("x",c/cols);
+  rect.setAttribute("y",r/rows);
+  rect.setAttribute("width",1/cols);
+  rect.setAttribute("height",1/rows);
+  rect.setAttribute("fill","black");
+  maskHoles.appendChild(rect);
+
+  updateMeta();
+}
+
+function undo(){
+  if(!opened.length) return;
+  var i=opened.pop();
+  grid.children[i].className="tile";
+  maskHoles.removeChild(maskHoles.lastChild);
+  updateMeta();
+}
+
+function resetAll(){
+  buildGrid();
+  answerOverlay.className="answerOverlay";
+}
+
+function toggleAnswer(){
+  answerOverlay.className =
+    answerOverlay.className.indexOf("show")===-1
+    ? "answerOverlay show"
+    : "answerOverlay";
+}
+
+function updateMeta(){
+  openedInfo.innerHTML =
+    "Відкрито: "+opened.length+"/"+(rows*cols);
+}
+
+/* INIT */
+buildGrid();
+</script>
+</body>
+</html>
