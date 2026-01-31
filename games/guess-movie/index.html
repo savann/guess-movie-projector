@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Вгадай фільм — Projector Prototype 2</title>
+  <title>Вгадай фільм — Projector Prototype 3</title>
   <style>
     :root{
       --bg:#0b0f17;
@@ -53,15 +53,21 @@
 
     .stage{ position:relative; display:grid; place-items:center; overflow:hidden; }
     .frame{
-      position:relative;
-      width:min(96vw, 96vh*1.65);
-      height:min(86vh, 96vw/1.65);
-      border-radius:18px;
-      overflow:hidden;
-      box-shadow:0 20px 60px rgba(0,0,0,.45);
-      border:1px solid var(--border);
-      background:#0a0f1b;
-    }
+    position:relative;
+    width:100%;
+    height:100%;
+    max-width:96vw;
+    max-height:88vh;
+    
+    aspect-ratio: 16 / 9; /* 👈 можна міняти */
+    margin:auto;
+    
+    border-radius:18px;
+    overflow:hidden;
+    box-shadow:0 20px 60px rgba(0,0,0,.45);
+    border:1px solid var(--border);
+    background:#0a0f1b;
+  }
 
     /* Два шари: чіткий + blur */
     .image{
